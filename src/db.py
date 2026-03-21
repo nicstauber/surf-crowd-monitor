@@ -8,7 +8,10 @@ Requires environment variables:
 
 import logging
 import os
+from io import BytesIO
+from datetime import datetime
 
+from PIL import Image
 from supabase import create_client, Client
 
 log = logging.getLogger(__name__)
@@ -45,6 +48,40 @@ def write_observation(record: dict):
         return row_id
     except Exception as e:
         log.error(f"DB write failed: {e}")
+        return None
+
+
+def upload_frame(spot_id: str, captured_at: datetime, img_pil: Image.Image) -> str | None:
+    """
+    Upload the best frame JPEG to Supabase Storage bucket 'frames'.
+    Returns the public URL, or None on failure.
+    Path: frames/{spot_id}/{YYYY-MM-DDTHH-MM-SS}.jpg
+    """
+    client = get_client()
+    ts     = captured_at.strftime("%Y-%m-%dT%H-%M-%S")
+    path   = f"{spot_id}/{ts}.jpg"
+
+    # Resize to thumbnail width for storage efficiency
+    thumb = img_pil.copy()
+    if thumb.width > 640:
+        ratio = 640 / thumb.width
+        thumb = thumb.resize((640, int(thumb.height * ratio)), Image.LANCZOS)
+
+    buf = BytesIO()
+    thumb.save(buf, format="JPEG", quality=75)
+    buf.seek(0)
+
+    try:
+        client.storage.from_("frames").upload(
+            path=path,
+            file=buf.getvalue(),
+            file_options={"content-type": "image/jpeg", "upsert": "true"},
+        )
+        url = client.storage.from_("frames").get_public_url(path)
+        log.info(f"Frame uploaded → {url}")
+        return url
+    except Exception as e:
+        log.warning(f"Frame upload failed: {e}")
         return None
 
 

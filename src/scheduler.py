@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from capture    import fetch_burst, score_frames
 from conditions import fetch_conditions
-from db         import get_client, write_observation
+from db         import get_client, write_observation, upload_frame
 from detect     import count_surfers
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -167,7 +167,7 @@ def run_spot_sample(
             f"(max across {len(contributing)} qualifying frames)"
         )
     else:
-        surfer_count   = 0
+        surfer_count   = None   # null = unknown; 0 would mean "counted zero"
         count_reliable = False
         claude_notes   = "No qualifying frames"
         log.warning(f"[{spot_id}] No qualifying frames — count unreliable")
@@ -176,6 +176,9 @@ def run_spot_sample(
     all_scores  = [fr["quality"]["overall_score"] for fr in scored]
     all_laps    = [fr["quality"]["lap_var"]       for fr in scored]
     all_noise   = [fr["quality"]["noisy_pct"]     for fr in scored]
+
+    # 5b. Pick best frame image for storage (highest quality score)
+    best_frame_img = max(scored, key=lambda x: x["quality"]["overall_score"])["image"]
 
     # 6. Surfline conditions
     conditions = fetch_conditions(spot, captured_at)
@@ -220,7 +223,13 @@ def run_spot_sample(
         "claude_notes": claude_notes,
     }
 
-    # 8. Write to DB
+    # 8. Upload best frame to Supabase Storage
+    frame_url = None
+    if not skip_db:
+        frame_url = upload_frame(spot_id, captured_at, best_frame_img)
+    record["frame_url"] = frame_url
+
+    # 9. Write to DB
     if not skip_db:
         write_observation(record)
     else:
@@ -282,7 +291,12 @@ def main() -> None:
 
     if args.once:
         log.info("--once flag set — running single cycle")
-        run_sample_cycle(spots, settings, claude_client, output_dir, skip_db=not supabase_ready)
+        now          = datetime.now(timezone.utc)
+        active_spots = [s for s in spots if s.get("enabled") and is_active(s, now)]
+        if not active_spots:
+            log.info("Outside active window for all spots — nothing to do.")
+        else:
+            run_sample_cycle(active_spots, settings, claude_client, output_dir, skip_db=not supabase_ready)
         log.info("Done.")
         return
 
