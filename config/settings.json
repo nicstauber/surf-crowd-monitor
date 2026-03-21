@@ -1,0 +1,11 @@
+{
+  "burst_frame_count": 3,
+  "burst_interval_seconds": 10,
+  "sample_interval_minutes": 15,
+  "active_window_before_sunrise_hours": 1,
+  "active_window_after_sunset_hours": 1,
+  "quality_threshold": 0.45,
+  "claude_model": "claude-haiku-4-5",
+  "image_width": 1280,
+  "output_dir": "./spike_output"
+}

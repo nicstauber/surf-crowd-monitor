@@ -1,0 +1,44 @@
+{
+  "spots": [
+    {
+      "id": "lower_trestles",
+      "name": "Lower Trestles",
+      "hls_slug": "wc-lowerslefts",
+      "surfline_spot_id": "5842041f4e65fad6a770888a",
+      "lat": 33.3814,
+      "lng": -117.5897,
+      "timezone": "America/Los_Angeles",
+      "enabled": true
+    },
+    {
+      "id": "hb_pier_south",
+      "name": "HB Pier South",
+      "hls_slug": "wc-hbpierssov",
+      "surfline_spot_id": "5842041f4e65fad6a77088ed",
+      "lat": 33.6553,
+      "lng": -118.0027,
+      "timezone": "America/Los_Angeles",
+      "enabled": true
+    },
+    {
+      "id": "hb_cliffs",
+      "name": "HB Cliffs",
+      "hls_slug": "wc-goldenwest",
+      "surfline_spot_id": "5842041f4e65fad6a77088ea",
+      "lat": 33.6580,
+      "lng": -118.0050,
+      "timezone": "America/Los_Angeles",
+      "enabled": true
+    },
+    {
+      "id": "newport_56th",
+      "name": "Newport 56th",
+      "hls_slug": "wc-fiftysixnewport",
+      "surfline_spot_id": "5842041f4e65fad6a7708e54",
+      "lat": 33.5983,
+      "lng": -117.8853,
+      "timezone": "America/Los_Angeles",
+      "enabled": true
+    }
+  ]
+}

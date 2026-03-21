@@ -1,0 +1,7 @@
+anthropic
+requests
+opencv-python
+pillow
+numpy
+astral
+supabase

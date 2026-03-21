@@ -1,0 +1,7 @@
+venv/
+.env
+spike_output/
+__pycache__/
+*.pyc
+.DS_Store
+
