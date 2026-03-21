@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Surf Crowd Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #070d1a;
+      --surface:      #0d1625;
+      --surface-2:    #141e30;
+      --border:       rgba(255,255,255,0.06);
+      --border-hover: rgba(255,255,255,0.12);
+      --accent:       #38bdf8;
+      --text:         #e2e8f0;
+      --text-dim:     #94a3b8;
+      --text-muted:   #475569;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: rgba(7,13,26,0.85);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .live-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #34d399;
+      box-shadow: 0 0 0 0 rgba(52,211,153,0.4);
+      animation: live-pulse 2.5s infinite;
+    }
+    @keyframes live-pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(52,211,153,0.4); }
+      70%  { box-shadow: 0 0 0 6px rgba(52,211,153,0); }
+      100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); }
+    }
+
+    #lastUpdated {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ── Layout ──────────────────────────────────────────────────────────── */
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px 20px 56px;
+    }
+
+    /* ── Spot Grid ───────────────────────────────────────────────────────── */
+    .spots-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+    @media (max-width: 680px) {
+      .spots-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Spot Card ───────────────────────────────────────────────────────── */
+    .spot-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .spot-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-1px);
+    }
+
+    .frame-thumb {
+      width: 100%;
+      aspect-ratio: 16/9;
+      object-fit: cover;
+      display: block;
+      background: var(--surface-2);
+    }
+    .frame-placeholder {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: var(--surface-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 12px;
+      letter-spacing: 0.03em;
+    }
+
+    .card-body { padding: 18px 20px 20px; }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .spot-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .rating-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+    .r-EPIC        { background: rgba(251,191,36,0.15);  color: #fbbf24; }
+    .r-VERY_GOOD   { background: rgba(52,211,153,0.15);  color: #34d399; }
+    .r-GOOD        { background: rgba(52,211,153,0.10);  color: #6ee7b7; }
+    .r-FAIR        { background: rgba(251,191,36,0.10);  color: #fcd34d; }
+    .r-POOR_TO_FAIR{ background: rgba(251,146,60,0.10);  color: #fb923c; }
+    .r-POOR        { background: rgba(248,113,113,0.10); color: #f87171; }
+
+    /* ── Count display ───────────────────────────────────────────────────── */
+    .count-row {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      margin-bottom: 4px;
+    }
+    .count-num {
+      font-size: 64px;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+    .count-num.known    { color: var(--text); }
+    .count-num.unknown  { color: var(--text-muted); font-size: 48px; }
+    .count-unit {
+      font-size: 14px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+    .count-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 18px;
+      min-height: 16px;
+    }
+
+    /* ── Conditions ──────────────────────────────────────────────────────── */
+    .conditions {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .cond-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+    .cond-value {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-dim);
+    }
+
+    /* ── Skeleton ────────────────────────────────────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg,
+        var(--surface-2) 25%,
+        rgba(255,255,255,0.04) 50%,
+        var(--surface-2) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 5px;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ── Section header ──────────────────────────────────────────────────── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    /* ── Chart card ──────────────────────────────────────────────────────── */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 20px 20px 24px;
+    }
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .chart-title {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .range-tabs {
+      display: flex;
+      gap: 3px;
+      background: var(--surface-2);
+      border-radius: 8px;
+      padding: 3px;
+    }
+    .range-tab {
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 11px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--text-muted);
+      border: none;
+      background: transparent;
+      transition: all 0.15s;
+    }
+    .range-tab:hover  { color: var(--text-dim); }
+    .range-tab.active { background: var(--surface); color: var(--text); }
+
+    .chart-wrap { position: relative; height: 220px; }
+
+    .no-history {
+      height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="live-dot"></div>
+    Surf Crowd Monitor
+  </div>
+  <div id="lastUpdated">—</div>
+</header>
+
+<main>
+  <div class="spots-grid" id="spotsGrid">
+    <!-- skeleton injected by JS on load -->
+  </div>
+
+  <div class="section-label">Surfer Count History</div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">All spots — reliable counts only</div>
+      <div class="range-tabs">
+        <button class="range-tab active" data-hours="24">24 h</button>
+        <button class="range-tab" data-hours="72">3 d</button>
+        <button class="range-tab" data-hours="168">7 d</button>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="historyChart"></canvas>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── CONFIG — fill in your Supabase anon (public) key ───────────────────────
+const SUPABASE_URL      = 'https://nkwckqkgvyttoprlwdcs.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0cWl6emh0dWV5YnRxYndjbWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwNTk5MzQsImV4cCI6MjA4OTYzNTkzNH0.7ezUGo82i6iHs3K9OsPzHuKzgUeENVahI7b_839Dha4';
+
+const SPOTS = [
+  { id: 'lower_trestles', name: 'Lower Trestles' },
+  { id: 'hb_pier_south',  name: 'HB Pier South'  },
+  { id: 'hb_cliffs',      name: 'HB Cliffs'       },
+  { id: 'newport_56th',   name: 'Newport 56th'    },
+];
+
+const COLORS = {
+  lower_trestles: '#38bdf8',
+  hb_pier_south:  '#a78bfa',
+  hb_cliffs:      '#34d399',
+  newport_56th:   '#fb923c',
+};
+
+// ── Init Supabase ──────────────────────────────────────────────────────────
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let chart     = null;
+let activeHrs = 24;
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function timeAgo(iso) {
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (s < 90)    return 'just now';
+  if (s < 3600)  return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
+function ratingKey(r) {
+  return r ? r.replace(/\s+/g, '_').toUpperCase() : '';
+}
+function ratingLabel(r) {
+  return r ? r.replace(/_/g, ' ') : '';
+}
+function fmt(v, unit, decimals = 0) {
+  return v != null ? `${Number(v).toFixed(decimals)}${unit}` : '—';
+}
+function waveRange(mn, mx) {
+  if (mn == null || mx == null) return '—';
+  return mn === mx ? `${mn}ft` : `${mn}–${mx}ft`;
+}
+
+// ── Skeleton cards ─────────────────────────────────────────────────────────
+function renderSkeletons() {
+  document.getElementById('spotsGrid').innerHTML = SPOTS.map(() => `
+    <div class="spot-card">
+      <div class="frame-placeholder skeleton"></div>
+      <div class="card-body">
+        <div class="card-header">
+          <div class="skeleton" style="width:90px;height:11px"></div>
+          <div class="skeleton" style="width:38px;height:18px;border-radius:20px"></div>
+        </div>
+        <div class="skeleton" style="width:72px;height:60px;margin-bottom:6px"></div>
+        <div class="skeleton" style="width:110px;height:11px;margin-bottom:18px"></div>
+        <div class="conditions">
+          ${[0,1,2,3].map(() => `
+            <div>
+              <div class="skeleton" style="height:9px;margin-bottom:4px;width:60%"></div>
+              <div class="skeleton" style="height:13px;width:80%"></div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Render a single card ───────────────────────────────────────────────────
+function cardHTML(spot, obs) {
+  const count    = obs?.surfer_count;
+  const reliable = obs?.count_reliable;
+  const rk       = ratingKey(obs?.spot_rating);
+
+  const frameHTML = obs?.frame_url
+    ? `<img class="frame-thumb" src="${obs.frame_url}" alt="${spot.name}" loading="lazy">`
+    : `<div class="frame-placeholder">No frame yet</div>`;
+
+  let countHTML, unitHTML, metaHTML;
+  if (!obs) {
+    countHTML = `<div class="count-num unknown">—</div>`;
+    unitHTML  = '';
+    metaHTML  = 'No data';
+  } else if (count === null || !reliable) {
+    countHTML = `<div class="count-num unknown">—</div>`;
+    unitHTML  = '';
+    metaHTML  = `Unreliable · ${timeAgo(obs.captured_at)}`;
+  } else {
+    countHTML = `<div class="count-num known">${count}</div>`;
+    unitHTML  = `<div class="count-unit">surfers</div>`;
+    metaHTML  = `Counted ${timeAgo(obs.captured_at)}`;
+  }
+
+  return `
+    <div class="spot-card">
+      ${frameHTML}
+      <div class="card-body">
+        <div class="card-header">
+          <div class="spot-name">${spot.name}</div>
+          ${rk ? `<div class="rating-badge r-${rk}">${ratingLabel(obs.spot_rating)}</div>` : ''}
+        </div>
+        <div class="count-row">${countHTML}${unitHTML}</div>
+        <div class="count-meta">${metaHTML}</div>
+        <div class="conditions">
+          <div>
+            <div class="cond-label">Waves</div>
+            <div class="cond-value">${waveRange(obs?.wave_height_min, obs?.wave_height_max)}</div>
+          </div>
+          <div>
+            <div class="cond-label">Swell</div>
+            <div class="cond-value">${obs?.swell_height != null ? `${Number(obs.swell_height).toFixed(1)}ft ${obs.swell_period ? `@ ${obs.swell_period}s` : ''}` : '—'}</div>
+          </div>
+          <div>
+            <div class="cond-label">Wind</div>
+            <div class="cond-value">${obs?.wind_speed != null ? `${Math.round(obs.wind_speed)} kts` : '—'}</div>
+          </div>
+          <div>
+            <div class="cond-label">Tide</div>
+            <div class="cond-value">${fmt(obs?.tide_height, 'ft', 1)}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── Fetch latest observation per spot ─────────────────────────────────────
+async function fetchLatest() {
+  const results = await Promise.all(
+    SPOTS.map(async spot => {
+      const { data } = await db
+        .from('observations')
+        .select('*')
+        .eq('spot_id', spot.id)
+        .order('captured_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return { spot, obs: data };
+    })
+  );
+
+  document.getElementById('spotsGrid').innerHTML =
+    results.map(({ spot, obs }) => cardHTML(spot, obs)).join('');
+
+  document.getElementById('lastUpdated').textContent =
+    `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+}
+
+// ── History chart ──────────────────────────────────────────────────────────
+async function fetchAndRenderHistory(hours) {
+  const since = new Date(Date.now() - hours * 3600_000).toISOString();
+
+  const allData = await Promise.all(
+    SPOTS.map(async spot => {
+      const { data } = await db
+        .from('observations')
+        .select('captured_at, surfer_count')
+        .eq('spot_id', spot.id)
+        .eq('count_reliable', true)
+        .not('surfer_count', 'is', null)
+        .gte('captured_at', since)
+        .order('captured_at', { ascending: true });
+      return { spot, data: data || [] };
+    })
+  );
+
+  const datasets = allData
+    .filter(({ data }) => data.length > 0)
+    .map(({ spot, data }) => ({
+      label:           spot.name,
+      data:            data.map(d => ({ x: new Date(d.captured_at), y: d.surfer_count })),
+      borderColor:     COLORS[spot.id],
+      backgroundColor: COLORS[spot.id] + '18',
+      borderWidth:     2,
+      pointRadius:     3,
+      pointHoverRadius:5,
+      tension:         0.35,
+      fill:            false,
+    }));
+
+  const chartWrap = document.querySelector('.chart-wrap');
+
+  if (datasets.length === 0) {
+    chartWrap.innerHTML = `<div class="no-history">No reliable counts yet in this window</div>`;
+    return;
+  }
+
+  if (!chartWrap.querySelector('canvas')) {
+    chartWrap.innerHTML = `<canvas id="historyChart"></canvas>`;
+  }
+
+  if (chart) {
+    chart.data.datasets = datasets;
+    chart.update();
+    return;
+  }
+
+  chart = new Chart(
+    document.getElementById('historyChart').getContext('2d'),
+    {
+      type: 'line',
+      data: { datasets },
+      options: {
+        responsive:          true,
+        maintainAspectRatio: false,
+        interaction:         { mode: 'nearest', intersect: false },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color:          '#64748b',
+              font:           { family: 'Inter', size: 11 },
+              boxWidth:       8,
+              boxHeight:      8,
+              usePointStyle:  true,
+              pointStyle:     'circle',
+              padding:        16,
+            },
+          },
+          tooltip: {
+            backgroundColor: '#0d1625',
+            borderColor:     'rgba(255,255,255,0.08)',
+            borderWidth:     1,
+            titleColor:      '#94a3b8',
+            bodyColor:       '#e2e8f0',
+            titleFont:       { family: 'Inter', size: 11 },
+            bodyFont:        { family: 'Inter', size: 12 },
+            callbacks: {
+              title: items => new Date(items[0].parsed.x)
+                .toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }),
+              label: item  => ` ${item.dataset.label}: ${item.parsed.y} surfers`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            type:  'time',
+            time:  { unit: hours <= 24 ? 'hour' : 'day' },
+            grid:  { color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: '#475569', font: { family: 'Inter', size: 10 } },
+          },
+          y: {
+            beginAtZero: true,
+            grid:        { color: 'rgba(255,255,255,0.04)' },
+            ticks:       { color: '#475569', font: { family: 'Inter', size: 10 }, stepSize: 5 },
+            title:       { display: true, text: 'Surfers', color: '#475569', font: { family: 'Inter', size: 10 } },
+          },
+        },
+      },
+    }
+  );
+}
+
+// ── Range tab switcher ─────────────────────────────────────────────────────
+document.querySelectorAll('.range-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.range-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeHrs = parseInt(btn.dataset.hours);
+    fetchAndRenderHistory(activeHrs);
+  });
+});
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+async function init() {
+  renderSkeletons();
+  await Promise.all([fetchLatest(), fetchAndRenderHistory(activeHrs)]);
+}
+
+init();
+setInterval(fetchLatest, 5 * 60 * 1000); // auto-refresh cards every 5 min
+</script>
+</body>
+</html>
