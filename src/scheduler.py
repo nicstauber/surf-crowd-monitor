@@ -144,30 +144,36 @@ def run_spot_sample(
     # 2. Score quality
     scored = score_frames(frame_paths, settings)
 
-    # 3. Claude vision on qualifying frames
+    # 3. Claude vision on the best qualifying frame only (cost optimisation)
     for fr in scored:
-        if fr["quality"]["contributes"]:
-            count, conf, notes = count_surfers(
-                fr["image"], f"{spot_id}/F{fr['index']}", claude_client, settings
-            )
-            fr.update({"count": count, "confidence": conf, "notes": notes})
-        else:
-            fr.update({"count": -1, "confidence": "n/a", "notes": "excluded: low quality"})
+        fr.update({"count": -1, "confidence": "n/a", "notes": "excluded: low quality"})
 
-    # 4. Determine final count (max across qualifying frames)
+    qualifying = [fr for fr in scored if fr["quality"]["contributes"]]
+    if qualifying:
+        best_qual = max(qualifying, key=lambda x: x["quality"]["overall_score"])
+        count, conf, notes = count_surfers(
+            best_qual["image"], f"{spot_id}/F{best_qual['index']}", claude_client, settings
+        )
+        best_qual.update({"count": count, "confidence": conf, "notes": notes})
+        log.info(
+            f"[{spot_id}] Sent 1 frame to Claude "
+            f"(best quality: F{best_qual['index']} score={best_qual['quality']['overall_score']:.2f})"
+        )
+
+    # 4. Determine final count
     contributing = [
         fr for fr in scored
         if fr["count"] >= 0 and fr["quality"]["contributes"]
     ]
 
     if contributing:
-        best           = max(contributing, key=lambda x: x["count"])
+        best           = contributing[0]  # only one frame was sent to Claude
         surfer_count   = best["count"]
         count_reliable = True
         claude_notes   = best["notes"]
         log.info(
             f"[{spot_id}] Final count: {surfer_count}  "
-            f"(max across {len(contributing)} qualifying frames)"
+            f"(best-frame, 1 API call)"
         )
     else:
         surfer_count   = None   # null = unknown; 0 would mean "counted zero"
@@ -193,7 +199,7 @@ def run_spot_sample(
         "spot_name":        spot["name"],
         "surfer_count":     surfer_count,
         "count_reliable":   count_reliable,
-        "count_method":     "claude_vision_full_frame_max_burst",
+        "count_method":     "claude_vision_full_frame_best_frame",
         "session_quality":  round(mean(all_scores), 3),
         "frame_quality_avg": round(mean(all_scores), 3),
         "lap_var_avg":      round(mean(all_laps), 1),
