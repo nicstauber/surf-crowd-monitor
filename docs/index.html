@@ -318,10 +318,10 @@ const SUPABASE_URL      = 'https://htqizzhtueybtqbwcmiq.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0cWl6emh0dWV5YnRxYndjbWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwNTk5MzQsImV4cCI6MjA4OTYzNTkzNH0.7ezUGo82i6iHs3K9OsPzHuKzgUeENVahI7b_839Dha4';
 
 const SPOTS = [
-  { id: 'lower_trestles', name: 'Lower Trestles' },
-  { id: 'hb_pier_south',  name: 'HB Pier South'  },
-  { id: 'hb_cliffs',      name: 'HB Cliffs'       },
-  { id: 'newport_56th',   name: 'Newport 56th'    },
+  { id: 'lower_trestles', name: 'Lower Trestles', surflineId: '5842041f4e65fad6a770888a' },
+  { id: 'newport_56th',   name: 'Newport 56th',   surflineId: '5842041f4e65fad6a7708e54' },
+  { id: 'hb_pier_south',  name: 'HB Pier South',  surflineId: '5842041f4e65fad6a77088ed' },
+  { id: 'hb_cliffs',      name: 'HB Cliffs',      surflineId: '5842041f4e65fad6a77088ea' },
 ];
 
 const COLORS = {
@@ -386,10 +386,11 @@ function renderSkeletons() {
 }
 
 // ── Render a single card ───────────────────────────────────────────────────
-function cardHTML(spot, obs) {
+function cardHTML(spot, obs, cond = {}) {
   const count    = obs?.surfer_count;
   const reliable = obs?.count_reliable;
-  const rk       = ratingKey(obs?.spot_rating);
+  // Prefer live conditions (cond), fall back to stored DB values (obs)
+  const rk       = ratingKey(cond?.spot_rating ?? obs?.spot_rating);
 
   const frameHTML = obs?.frame_url
     ? `<img class="frame-thumb" src="${obs.frame_url}" alt="${spot.name}" loading="lazy">`
@@ -416,49 +417,101 @@ function cardHTML(spot, obs) {
       <div class="card-body">
         <div class="card-header">
           <div class="spot-name">${spot.name}</div>
-          ${rk ? `<div class="rating-badge r-${rk}">${ratingLabel(obs.spot_rating)}</div>` : ''}
+          ${rk ? `<div class="rating-badge r-${rk}">${ratingLabel(cond?.spot_rating ?? obs?.spot_rating)}</div>` : ''}
         </div>
         <div class="count-row">${countHTML}${unitHTML}</div>
         <div class="count-meta">${metaHTML}</div>
         <div class="conditions">
           <div>
             <div class="cond-label">Waves</div>
-            <div class="cond-value">${waveRange(obs?.wave_height_min, obs?.wave_height_max)}</div>
+            <div class="cond-value">${waveRange(
+              cond?.wave_height_min ?? obs?.wave_height_min,
+              cond?.wave_height_max ?? obs?.wave_height_max
+            )}</div>
           </div>
           <div>
             <div class="cond-label">Swell</div>
-            <div class="cond-value">${obs?.swell_height != null ? `${Number(obs.swell_height).toFixed(1)}ft ${obs.swell_period ? `@ ${obs.swell_period}s` : ''}` : '—'}</div>
+            <div class="cond-value">${(() => {
+              const h = cond?.swell_height ?? obs?.swell_height;
+              const p = cond?.swell_period ?? obs?.swell_period;
+              return h != null ? `${Number(h).toFixed(1)}ft${p ? ` @ ${p}s` : ''}` : '—';
+            })()}</div>
           </div>
           <div>
             <div class="cond-label">Wind</div>
-            <div class="cond-value">${obs?.wind_speed != null ? `${Math.round(obs.wind_speed)} kts` : '—'}</div>
+            <div class="cond-value">${(() => {
+              const s = cond?.wind_speed ?? obs?.wind_speed;
+              return s != null ? `${Math.round(s)} kts` : '—';
+            })()}</div>
           </div>
           <div>
             <div class="cond-label">Tide</div>
-            <div class="cond-value">${fmt(obs?.tide_height, 'ft', 1)}</div>
+            <div class="cond-value">${fmt(cond?.tide_height ?? obs?.tide_height, 'ft', 1)}</div>
           </div>
         </div>
       </div>
     </div>`;
 }
 
+// ── Live Surfline conditions fetch ─────────────────────────────────────────
+const _SURFLINE = 'https://services.surfline.com/kbyg/spots/forecasts';
+
+function _closest(arr, ts) {
+  if (!arr || !arr.length) return null;
+  return arr.reduce((a, b) => Math.abs(b.timestamp - ts) < Math.abs(a.timestamp - ts) ? b : a);
+}
+
+async function fetchSpotConditions(surflineId) {
+  const params = `spotId=${surflineId}&days=1&intervalHours=1`;
+  const ts = Date.now() / 1000;
+  try {
+    const [waveRes, windRes, tidesRes, ratingRes] = await Promise.all([
+      fetch(`${_SURFLINE}/wave?${params}`).then(r => r.json()).catch(() => null),
+      fetch(`${_SURFLINE}/wind?${params}`).then(r => r.json()).catch(() => null),
+      fetch(`${_SURFLINE}/tides?${params}`).then(r => r.json()).catch(() => null),
+      fetch(`${_SURFLINE}/rating?${params}`).then(r => r.json()).catch(() => null),
+    ]);
+
+    const wave   = _closest(waveRes?.data?.wave,   ts);
+    const wind   = _closest(windRes?.data?.wind,   ts);
+    const tide   = _closest(tidesRes?.data?.tides, ts);
+    const rating = _closest(ratingRes?.data?.rating, ts);
+
+    return {
+      wave_height_min: wave?.surf?.min  ?? null,
+      wave_height_max: wave?.surf?.max  ?? null,
+      swell_height:    wave?.swells?.[0]?.height ?? null,
+      swell_period:    wave?.swells?.[0]?.period ?? null,
+      wind_speed:      wind?.speed      ?? null,
+      tide_height:     tide?.height     ?? null,
+      spot_rating:     rating?.rating?.key ?? null,
+    };
+  } catch (e) {
+    console.warn('Conditions fetch failed for', surflineId, e);
+    return {};
+  }
+}
+
 // ── Fetch latest observation per spot ─────────────────────────────────────
 async function fetchLatest() {
   const results = await Promise.all(
     SPOTS.map(async spot => {
-      const { data } = await db
-        .from('observations')
-        .select('*')
-        .eq('spot_id', spot.id)
-        .order('captured_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return { spot, obs: data };
+      const [{ data }, cond] = await Promise.all([
+        db
+          .from('observations')
+          .select('*')
+          .eq('spot_id', spot.id)
+          .order('captured_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        fetchSpotConditions(spot.surflineId),
+      ]);
+      return { spot, obs: data, cond };
     })
   );
 
   document.getElementById('spotsGrid').innerHTML =
-    results.map(({ spot, obs }) => cardHTML(spot, obs)).join('');
+    results.map(({ spot, obs, cond }) => cardHTML(spot, obs, cond)).join('');
 
   document.getElementById('lastUpdated').textContent =
     `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
