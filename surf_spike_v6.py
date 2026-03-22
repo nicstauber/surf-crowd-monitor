@@ -312,7 +312,7 @@ def save_contact_sheet(frame_results, final_count, session_quality, ts):
     q_c = ((0,200,0) if session_quality >= 0.75 else
            (0,165,255) if session_quality >= 0.62 else (0,0,220))
     cv2.putText(bar,
-                f"FINAL COUNT: {final_count}  (max across {len(frame_results)} frames)"
+                f"FINAL COUNT: {final_count}  (best-frame, 1 API call)"
                 f"   |   Session quality: {session_quality:.2f}   |   {CLAUDE_MODEL}",
                 (20, 42), cv2.FONT_HERSHEY_SIMPLEX, 0.82, q_c, 2)
 
@@ -359,7 +359,7 @@ if __name__ == "__main__":
     if not frame_paths:
         print("✗ No frames"); sys.exit(1)
 
-    # ── 2. Score + count ──────────────────────────────────────────────────
+    # ── 2. Score all frames ───────────────────────────────────────────────
     print(f"\n[PROCESS] {len(frame_paths)} frame(s)...")
     frame_results = []
 
@@ -370,28 +370,30 @@ if __name__ == "__main__":
 
         print(f"\n  {label}: quality={quality['overall_score']:.2f} [{quality['grade']}]  "
               f"Lap={quality['lap_var']:.0f}  Noise={quality['noisy_pct']:.0f}%")
-
         if not quality["contributes"]:
             print(f"  → Below threshold ({BURST_MIN_QUALITY}) — EXCLUDED")
-            frame_results.append({
-                "index": i+1, "path": str(fp), "image": img_pil,
-                "quality": quality, "count": -1,
-                "confidence": "n/a", "notes": "excluded: low quality"
-            })
-            continue
-
-        print(f"  → Sending full frame to Claude...", end=" ", flush=True)
-        count, conf, notes, _ = count_surfers_claude(img_pil, label, client)
-        print(f"count={count}  conf={conf}")
-        print(f"  → {notes}")
 
         frame_results.append({
             "index": i+1, "path": str(fp), "image": img_pil,
-            "quality": quality, "count": count,
-            "confidence": conf, "notes": notes
+            "quality": quality, "count": -1,
+            "confidence": "n/a", "notes": "excluded: low quality"
         })
 
-    # ── 3. Final count ────────────────────────────────────────────────────
+    # ── 3. Claude vision on the best qualifying frame only ────────────────
+    qualifying = [fr for fr in frame_results if fr["quality"]["contributes"]]
+    if qualifying:
+        best_qual = max(qualifying, key=lambda x: x["quality"]["overall_score"])
+        label = f"F{best_qual['index']}"
+        print(f"\n  Best qualifying: {label} (quality={best_qual['quality']['overall_score']:.2f})")
+        print(f"  → Sending to Claude...", end=" ", flush=True)
+        count, conf, notes, _ = count_surfers_claude(best_qual["image"], label, client)
+        print(f"count={count}  conf={conf}")
+        print(f"  → {notes}")
+        best_qual.update({"count": count, "confidence": conf, "notes": notes})
+    else:
+        print(f"\n  All frames below threshold — no Claude call")
+
+    # ── 4. Final count ────────────────────────────────────────────────────
     contributing = [fr for fr in frame_results
                     if fr["count"] >= 0 and fr["quality"]["contributes"]]
 
@@ -412,18 +414,18 @@ if __name__ == "__main__":
         sum(fr["quality"]["overall_score"] for fr in contributing) / len(contributing), 3
     ) if contributing else 0.0
 
-    # ── 4. Contact sheet ──────────────────────────────────────────────────
+    # ── 5. Contact sheet ──────────────────────────────────────────────────
     sheet_path = save_contact_sheet(frame_results, final_count, session_quality, now)
     if sheet_path:
         print(f"\n  Contact sheet → {sheet_path}")
 
-    # ── 5. DB record ──────────────────────────────────────────────────────
+    # ── 6. DB record ──────────────────────────────────────────────────────
     record = {
         "spot":            TEST_SPOT,
         "timestamp":       now.isoformat(),
         "surfer_count":    final_count,
         "count_reliable":  count_reliable,
-        "count_method":    "claude_vision_full_frame_max_burst",
+        "count_method":    "claude_vision_full_frame_best_frame",
         "model":           CLAUDE_MODEL,
         "burst_config": {
             "frame_count":      BURST_FRAME_COUNT,
