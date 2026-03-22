@@ -96,12 +96,131 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 18px;
-      overflow: hidden;
-      transition: border-color 0.2s, transform 0.2s;
+      transition: border-color 0.2s;
+      perspective: 1000px;
+      cursor: pointer;
     }
     .spot-card:hover {
       border-color: var(--border-hover);
-      transform: translateY(-1px);
+    }
+
+    /* ── Flip card mechanics ─────────────────────────────────────────────── */
+    .card-inner {
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .spot-card.flipped .card-inner {
+      transform: rotateY(180deg);
+    }
+    .card-front,
+    .card-back {
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+    .card-front {
+      border-radius: 18px;
+      overflow: hidden;
+    }
+    .card-back {
+      position: absolute;
+      inset: 0;
+      background: var(--surface-2);
+      border-radius: 18px;
+      transform: rotateY(180deg);
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ── Back card content ───────────────────────────────────────────────── */
+    .back-header { display: flex; align-items: flex-start; justify-content: space-between; }
+    .back-spot-name {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+    }
+    .back-title {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: rgba(255,255,255,0.06);
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+    .crowd-level-wrap { display: flex; align-items: baseline; gap: 10px; }
+    .crowd-level-badge {
+      font-size: 32px;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+    .crowd-level-LOW    { color: #34d399; }
+    .crowd-level-NORMAL { color: #94a3b8; }
+    .crowd-level-BUSY   { color: #fb923c; }
+    .crowd-level-PACKED { color: #f87171; }
+    .crowd-current {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    .back-section {
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .back-section-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+    .back-range {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .back-samples {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .crowd-bar-wrap {
+      height: 4px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 2px;
+      margin-top: 7px;
+      position: relative;
+    }
+    .crowd-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      max-width: 100%;
+    }
+    .crowd-bar-marker {
+      position: absolute;
+      top: -3px;
+      width: 2px;
+      height: 10px;
+      background: rgba(255,255,255,0.85);
+      border-radius: 1px;
+      transform: translateX(-50%);
+    }
+    .flip-hint {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: auto;
+      padding-top: 4px;
+    }
+    .back-no-data {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
     }
 
     .frame-thumb {
@@ -375,20 +494,27 @@ function degreesToCardinal(deg) {
 function renderSkeletons() {
   document.getElementById('spotsGrid').innerHTML = SPOTS.map(() => `
     <div class="spot-card">
-      <div class="frame-placeholder skeleton"></div>
-      <div class="card-body">
-        <div class="card-header">
-          <div class="skeleton" style="width:90px;height:11px"></div>
-          <div class="skeleton" style="width:38px;height:18px;border-radius:20px"></div>
+      <div class="card-inner">
+        <div class="card-front">
+          <div class="frame-placeholder skeleton"></div>
+          <div class="card-body">
+            <div class="card-header">
+              <div class="skeleton" style="width:90px;height:11px"></div>
+              <div class="skeleton" style="width:38px;height:18px;border-radius:20px"></div>
+            </div>
+            <div class="skeleton" style="width:72px;height:60px;margin-bottom:6px"></div>
+            <div class="skeleton" style="width:110px;height:11px;margin-bottom:18px"></div>
+            <div class="conditions">
+              ${[0,1,2,3].map(() => `
+                <div>
+                  <div class="skeleton" style="height:9px;margin-bottom:4px;width:60%"></div>
+                  <div class="skeleton" style="height:13px;width:80%"></div>
+                </div>`).join('')}
+            </div>
+          </div>
         </div>
-        <div class="skeleton" style="width:72px;height:60px;margin-bottom:6px"></div>
-        <div class="skeleton" style="width:110px;height:11px;margin-bottom:18px"></div>
-        <div class="conditions">
-          ${[0,1,2,3].map(() => `
-            <div>
-              <div class="skeleton" style="height:9px;margin-bottom:4px;width:60%"></div>
-              <div class="skeleton" style="height:13px;width:80%"></div>
-            </div>`).join('')}
+        <div class="card-back">
+          <div class="back-no-data" style="margin:auto;text-align:center">Loading…</div>
         </div>
       </div>
     </div>
@@ -422,47 +548,54 @@ function cardHTML(spot, obs, cond = {}) {
   }
 
   return `
-    <div class="spot-card">
-      ${frameHTML}
-      <div class="card-body">
-        <div class="card-header">
-          <div class="spot-name">${spot.name}</div>
-          ${rk ? `<div class="rating-badge r-${rk}">${ratingLabel(cond?.spot_rating ?? obs?.spot_rating)}</div>` : ''}
+    <div class="spot-card" data-spot-id="${spot.id}">
+      <div class="card-inner">
+        <div class="card-front">
+          ${frameHTML}
+          <div class="card-body">
+            <div class="card-header">
+              <div class="spot-name">${spot.name}</div>
+              ${rk ? `<div class="rating-badge r-${rk}">${ratingLabel(cond?.spot_rating ?? obs?.spot_rating)}</div>` : ''}
+            </div>
+            <div class="count-row">${countHTML}${unitHTML}</div>
+            <div class="count-meta">${metaHTML}</div>
+            <div class="conditions">
+              <div>
+                <div class="cond-label">Surf</div>
+                <div class="cond-value">${waveRange(
+                  cond?.wave_height_min ?? obs?.wave_height_min,
+                  cond?.wave_height_max ?? obs?.wave_height_max
+                )}</div>
+                ${(cond?.surf_human_relation) ? `<div class="cond-sub">${cond.surf_human_relation}</div>` : ''}
+              </div>
+              <div>
+                <div class="cond-label">Swell</div>
+                <div class="cond-value">${(() => {
+                  const h   = cond?.swell_height      ?? obs?.swell_height;
+                  const p   = cond?.swell_period      ?? obs?.swell_period;
+                  const dir = degreesToCardinal(cond?.swell_direction ?? obs?.swell_direction);
+                  if (h == null || h < 0.1) return '—';
+                  return `${Number(h).toFixed(1)}ft${p ? ` @ ${p}s` : ''}${dir ? ` ${dir}` : ''}`;
+                })()}</div>
+              </div>
+              <div>
+                <div class="cond-label">Wind</div>
+                <div class="cond-value">${(() => {
+                  const s   = cond?.wind_speed         ?? obs?.wind_speed;
+                  const dir = cond?.wind_direction_type ?? null;
+                  if (s == null) return '—';
+                  return `${Math.round(s)} kts${dir ? ` · ${dir}` : ''}`;
+                })()}</div>
+              </div>
+              <div>
+                <div class="cond-label">Tide</div>
+                <div class="cond-value">${fmt(cond?.tide_height ?? obs?.tide_height, 'ft', 1)}</div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="count-row">${countHTML}${unitHTML}</div>
-        <div class="count-meta">${metaHTML}</div>
-        <div class="conditions">
-          <div>
-            <div class="cond-label">Surf</div>
-            <div class="cond-value">${waveRange(
-              cond?.wave_height_min ?? obs?.wave_height_min,
-              cond?.wave_height_max ?? obs?.wave_height_max
-            )}</div>
-            ${(cond?.surf_human_relation) ? `<div class="cond-sub">${cond.surf_human_relation}</div>` : ''}
-          </div>
-          <div>
-            <div class="cond-label">Swell</div>
-            <div class="cond-value">${(() => {
-              const h   = cond?.swell_height      ?? obs?.swell_height;
-              const p   = cond?.swell_period      ?? obs?.swell_period;
-              const dir = degreesToCardinal(cond?.swell_direction ?? obs?.swell_direction);
-              if (h == null || h < 0.1) return '—';
-              return `${Number(h).toFixed(1)}ft${p ? ` @ ${p}s` : ''}${dir ? ` ${dir}` : ''}`;
-            })()}</div>
-          </div>
-          <div>
-            <div class="cond-label">Wind</div>
-            <div class="cond-value">${(() => {
-              const s   = cond?.wind_speed         ?? obs?.wind_speed;
-              const dir = cond?.wind_direction_type ?? null;
-              if (s == null) return '—';
-              return `${Math.round(s)} kts${dir ? ` · ${dir}` : ''}`;
-            })()}</div>
-          </div>
-          <div>
-            <div class="cond-label">Tide</div>
-            <div class="cond-value">${fmt(cond?.tide_height ?? obs?.tide_height, 'ft', 1)}</div>
-          </div>
+        <div class="card-back">
+          <div class="back-no-data" style="margin:auto;text-align:center">Loading crowd data…</div>
         </div>
       </div>
     </div>`;
@@ -482,6 +615,183 @@ async function fetchSpotConditions(surflineId) {
     console.warn('Conditions fetch failed for', surflineId, e);
     return {};
   }
+}
+
+// ── Crowd context — historical typical data ────────────────────────────────
+
+const backDataCache = new Map(); // spotId → { rows, loaded }
+
+// Compute percentile stats from an array of numbers
+function computeStats(samples) {
+  if (samples.length < 5) return null;
+  const sorted = [...samples].sort((a, b) => a - b);
+  const at = pct => sorted[Math.max(0, Math.floor((pct / 100) * sorted.length) - 1)];
+  return {
+    count:  samples.length,
+    min:    sorted[0],
+    max:    sorted[sorted.length - 1],
+    p25:    at(25),
+    p75:    at(75),
+    p90:    at(90),
+    mean:   Math.round(samples.reduce((s, v) => s + v, 0) / samples.length),
+  };
+}
+
+// Fetch last-30-days reliable rows for a spot (cached per spotId)
+async function fetchHistoricalRows(spotId) {
+  if (backDataCache.has(spotId)) return backDataCache.get(spotId);
+  const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const { data } = await db
+    .from('observations')
+    .select('captured_at, surfer_count, spot_rating, wave_height_min')
+    .eq('spot_id', spotId)
+    .eq('count_reliable', true)
+    .not('surfer_count', 'is', null)
+    .gte('captured_at', since)
+    .order('captured_at', { ascending: false });
+  const rows = data || [];
+  backDataCache.set(spotId, rows);
+  return rows;
+}
+
+// Typical crowd for same ±1 hour of day (browser local time)
+function typicalByHour(rows, refDate) {
+  const refHour = refDate.getHours();
+  const matching = rows.filter(r => {
+    const h = new Date(r.captured_at).getHours();
+    return Math.abs(h - refHour) <= 1 || Math.abs(h - refHour) >= 23; // wrap midnight
+  });
+  return computeStats(matching.map(r => r.surfer_count));
+}
+
+// Typical crowd for same Surfline rating
+function typicalByRating(rows, rating) {
+  if (!rating) return null;
+  const matching = rows.filter(r => r.spot_rating === rating && r.surfer_count != null);
+  return computeStats(matching.map(r => r.surfer_count));
+}
+
+// Classify current count against a stats object
+function classifyLevel(current, stats) {
+  if (!stats || current == null) return null;
+  if (current <= stats.p25)  return 'LOW';
+  if (current <= stats.p75)  return 'NORMAL';
+  if (current <= stats.p90)  return 'BUSY';
+  return 'PACKED';
+}
+
+// Mini horizontal bar: filled to p75, marker at current position
+function barHTML(current, stats, color) {
+  if (!stats || current == null) return '';
+  const maxVal   = Math.max(stats.max, current, 1);
+  const fillPct  = Math.min(100, (stats.p75 / maxVal) * 100);
+  const markPct  = Math.min(100, (current  / maxVal) * 100);
+  return `
+    <div class="crowd-bar-wrap">
+      <div class="crowd-bar-fill" style="width:${fillPct}%;background:${color}33"></div>
+      <div class="crowd-bar-marker" style="left:${markPct}%"></div>
+    </div>`;
+}
+
+function formatHour(h) {
+  const ampm = h < 12 ? 'am' : 'pm';
+  const h12  = h % 12 || 12;
+  return `${h12}${ampm}`;
+}
+
+// Render full back-card HTML
+function renderBackHTML(spot, obs, hourStats, condStats) {
+  const count    = obs?.surfer_count;
+  const rating   = obs?.spot_rating;
+  const refHour  = obs?.captured_at ? new Date(obs.captured_at).getHours() : new Date().getHours();
+
+  // Determine primary level badge
+  const primaryStats = hourStats || condStats;
+  const level  = classifyLevel(count, primaryStats);
+  const levelColors = { LOW: '#34d399', NORMAL: '#94a3b8', BUSY: '#fb923c', PACKED: '#f87171' };
+  const levelColor  = level ? levelColors[level] : '#94a3b8';
+
+  const badgeHTML = (level && count != null)
+    ? `<div class="crowd-level-wrap">
+        <div class="crowd-level-badge crowd-level-${level}">${level}</div>
+        <div class="crowd-current">Currently ${count} surfer${count !== 1 ? 's' : ''}</div>
+       </div>`
+    : `<div class="back-no-data">No recent count to compare</div>`;
+
+  // Time-of-day section
+  let hourSection = '';
+  if (hourStats) {
+    hourSection = `
+      <div class="back-section">
+        <div class="back-section-label">This time of day (${formatHour(Math.max(0, refHour - 1))}–${formatHour(Math.min(23, refHour + 1))})</div>
+        <div class="back-range">${hourStats.p25}–${hourStats.p75} surfers typical</div>
+        <div class="back-samples">${hourStats.count} sample${hourStats.count !== 1 ? 's' : ''} · last 30 days</div>
+        ${barHTML(count, hourStats, levelColor)}
+      </div>`;
+  } else {
+    hourSection = `
+      <div class="back-section">
+        <div class="back-section-label">This time of day</div>
+        <div class="back-no-data">Not enough history yet</div>
+      </div>`;
+  }
+
+  // Conditions section
+  let condSection = '';
+  const condLevel = classifyLevel(count, condStats);
+  const condColor = condLevel ? levelColors[condLevel] : '#94a3b8';
+  if (condStats && rating) {
+    condSection = `
+      <div class="back-section">
+        <div class="back-section-label">Similar conditions (${ratingLabel(rating)} surf)</div>
+        <div class="back-range">${condStats.p25}–${condStats.p75} surfers typical</div>
+        <div class="back-samples">${condStats.count} sample${condStats.count !== 1 ? 's' : ''} · last 30 days</div>
+        ${barHTML(count, condStats, condColor)}
+      </div>`;
+  } else if (rating) {
+    condSection = `
+      <div class="back-section">
+        <div class="back-section-label">Similar conditions (${ratingLabel(rating)} surf)</div>
+        <div class="back-no-data">Not enough history yet</div>
+      </div>`;
+  }
+
+  return `
+    <div class="back-header">
+      <div class="back-spot-name">${spot.name}</div>
+      <div class="back-title">Crowd Context</div>
+    </div>
+    ${badgeHTML}
+    ${hourSection}
+    ${condSection}
+    <div class="flip-hint">↩ Tap to flip back</div>`;
+}
+
+// Populate back face on first flip
+async function ensureBackLoaded(cardEl) {
+  const back = cardEl.querySelector('.card-back');
+  if (back.dataset.loaded) return;
+
+  const spotId = cardEl.dataset.spotId;
+  const spot   = SPOTS.find(s => s.id === spotId);
+  if (!spot) return;
+
+  // Find the latest obs stored on the card (we stash it as a data attribute)
+  let obs = null;
+  try { obs = JSON.parse(cardEl.dataset.obs || 'null'); } catch (_) {}
+
+  try {
+    const rows     = await fetchHistoricalRows(spotId);
+    const refDate  = obs?.captured_at ? new Date(obs.captured_at) : new Date();
+    const rating   = obs?.spot_rating ?? null;
+    const hourStats = typicalByHour(rows, refDate);
+    const condStats = typicalByRating(rows, rating);
+    back.innerHTML  = renderBackHTML(spot, obs, hourStats, condStats);
+  } catch (e) {
+    console.warn('Back card load failed', e);
+    back.innerHTML = `<div class="back-no-data" style="margin:auto;text-align:center">Could not load crowd data</div>`;
+  }
+  back.dataset.loaded = '1';
 }
 
 // ── Fetch latest observation per spot ─────────────────────────────────────
@@ -504,6 +814,17 @@ async function fetchLatest() {
 
   document.getElementById('spotsGrid').innerHTML =
     results.map(({ spot, obs, cond }) => cardHTML(spot, obs, cond)).join('');
+
+  // Stash obs on each card element so the back-card loader can read it
+  results.forEach(({ spot, obs }) => {
+    const el = document.querySelector(`.spot-card[data-spot-id="${spot.id}"]`);
+    if (el && obs) {
+      el.dataset.obs = JSON.stringify(obs);
+      // Invalidate cached back so it re-renders on next flip with fresh obs
+      const back = el.querySelector('.card-back');
+      if (back) delete back.dataset.loaded;
+    }
+  });
 
   document.getElementById('lastUpdated').textContent =
     `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
@@ -624,9 +945,22 @@ document.querySelectorAll('.range-tab').forEach(btn => {
   });
 });
 
+// ── Flip card event delegation ─────────────────────────────────────────────
+function setupFlipHandler() {
+  document.getElementById('spotsGrid').addEventListener('click', async e => {
+    const card = e.target.closest('.spot-card[data-spot-id]');
+    if (!card) return;
+    card.classList.toggle('flipped');
+    if (card.classList.contains('flipped')) {
+      await ensureBackLoaded(card);
+    }
+  });
+}
+
 // ── Boot ───────────────────────────────────────────────────────────────────
 async function init() {
   renderSkeletons();
+  setupFlipHandler();
   await Promise.all([fetchLatest(), fetchAndRenderHistory(activeHrs)]);
 }
 
