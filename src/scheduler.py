@@ -23,6 +23,9 @@ from statistics import mean
 import anthropic
 from astral import LocationInfo
 from astral.sun import sun
+from dotenv import load_dotenv
+
+load_dotenv()  # loads .env from project root (no-op if file absent)
 
 # ── Path setup so sibling modules import cleanly ───────────────────────────────
 sys.path.insert(0, str(Path(__file__).parent))
@@ -265,6 +268,11 @@ def main() -> None:
         action="store_true",
         help="Run a single sample cycle immediately then exit (skips DB write if Supabase not configured)",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Bypass active window check (useful for testing outside daylight hours)",
+    )
     args = parser.parse_args()
 
     # Validate required env vars
@@ -292,9 +300,14 @@ def main() -> None:
     if args.once:
         log.info("--once flag set — running single cycle")
         now          = datetime.now(timezone.utc)
-        active_spots = [s for s in spots if s.get("enabled") and is_active(s, now)]
+        enabled      = [s for s in spots if s.get("enabled")]
+        if args.force:
+            log.info("--force flag set — bypassing active window check")
+            active_spots = enabled
+        else:
+            active_spots = [s for s in enabled if is_active(s, now)]
         if not active_spots:
-            log.info("Outside active window for all spots — nothing to do.")
+            log.info("Outside active window for all spots — nothing to do. Use --force to override.")
         else:
             run_sample_cycle(active_spots, settings, claude_client, output_dir, skip_db=not supabase_ready)
         log.info("Done.")
