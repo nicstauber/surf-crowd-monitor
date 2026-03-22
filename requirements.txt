@@ -5,3 +5,4 @@ pillow
 numpy
 astral
 supabase
+tzdata
