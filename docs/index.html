@@ -203,6 +203,11 @@
       font-weight: 500;
       color: var(--text-dim);
     }
+    .cond-sub {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
 
     /* ── Skeleton ────────────────────────────────────────────────────────── */
     .skeleton {
@@ -360,6 +365,11 @@ function waveRange(mn, mx) {
   if (mn == null || mx == null) return '—';
   return mn === mx ? `${mn}ft` : `${mn}–${mx}ft`;
 }
+function degreesToCardinal(deg) {
+  if (deg == null) return '';
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg / 22.5) % 16];
+}
 
 // ── Skeleton cards ─────────────────────────────────────────────────────────
 function renderSkeletons() {
@@ -423,25 +433,30 @@ function cardHTML(spot, obs, cond = {}) {
         <div class="count-meta">${metaHTML}</div>
         <div class="conditions">
           <div>
-            <div class="cond-label">Waves</div>
+            <div class="cond-label">Surf</div>
             <div class="cond-value">${waveRange(
               cond?.wave_height_min ?? obs?.wave_height_min,
               cond?.wave_height_max ?? obs?.wave_height_max
             )}</div>
+            ${(cond?.surf_human_relation) ? `<div class="cond-sub">${cond.surf_human_relation}</div>` : ''}
           </div>
           <div>
             <div class="cond-label">Swell</div>
             <div class="cond-value">${(() => {
-              const h = cond?.swell_height ?? obs?.swell_height;
-              const p = cond?.swell_period ?? obs?.swell_period;
-              return h != null ? `${Number(h).toFixed(1)}ft${p ? ` @ ${p}s` : ''}` : '—';
+              const h   = cond?.swell_height      ?? obs?.swell_height;
+              const p   = cond?.swell_period      ?? obs?.swell_period;
+              const dir = degreesToCardinal(cond?.swell_direction_deg ?? obs?.swell_direction);
+              if (h == null || h < 0.1) return '—';
+              return `${Number(h).toFixed(1)}ft${p ? ` @ ${p}s` : ''}${dir ? ` ${dir}` : ''}`;
             })()}</div>
           </div>
           <div>
             <div class="cond-label">Wind</div>
             <div class="cond-value">${(() => {
-              const s = cond?.wind_speed ?? obs?.wind_speed;
-              return s != null ? `${Math.round(s)} kts` : '—';
+              const s   = cond?.wind_speed         ?? obs?.wind_speed;
+              const dir = cond?.wind_direction_type ?? null;
+              if (s == null) return '—';
+              return `${Math.round(s)} kts${dir ? ` · ${dir}` : ''}`;
             })()}</div>
           </div>
           <div>
@@ -478,13 +493,16 @@ async function fetchSpotConditions(surflineId) {
     const rating = _closest(ratingRes?.data?.rating, ts);
 
     return {
-      wave_height_min: wave?.surf?.min  ?? null,
-      wave_height_max: wave?.surf?.max  ?? null,
-      swell_height:    wave?.swells?.[0]?.height ?? null,
-      swell_period:    wave?.swells?.[0]?.period ?? null,
-      wind_speed:      wind?.speed      ?? null,
-      tide_height:     tide?.height     ?? null,
-      spot_rating:     rating?.rating?.key ?? null,
+      wave_height_min:    wave?.surf?.min              ?? null,
+      wave_height_max:    wave?.surf?.max              ?? null,
+      surf_human_relation:wave?.surf?.humanRelation    ?? null,
+      swell_height:       wave?.swells?.[0]?.height   ?? null,
+      swell_period:       wave?.swells?.[0]?.period   ?? null,
+      swell_direction_deg:wave?.swells?.[0]?.direction ?? null,
+      wind_speed:         wind?.speed                  ?? null,
+      wind_direction_type:wind?.directionType          ?? null,
+      tide_height:        tide?.height                 ?? null,
+      spot_rating:        rating?.rating?.key          ?? null,
     };
   } catch (e) {
     console.warn('Conditions fetch failed for', surflineId, e);
