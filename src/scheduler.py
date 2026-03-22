@@ -23,6 +23,9 @@ from statistics import mean
 import anthropic
 from astral import LocationInfo
 from astral.sun import sun
+from dotenv import load_dotenv
+
+load_dotenv()  # loads .env from project root (no-op if file absent)
 
 # ── Path setup so sibling modules import cleanly ───────────────────────────────
 sys.path.insert(0, str(Path(__file__).parent))
