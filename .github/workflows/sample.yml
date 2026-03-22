@@ -54,7 +54,7 @@ jobs:
           EOF
 
       - name: Run sample cycle
-        run: python src/scheduler.py --once --force
+        run: python src/scheduler.py --once
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
