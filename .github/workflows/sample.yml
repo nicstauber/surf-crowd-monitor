@@ -19,6 +19,37 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
+      - name: Check ffmpeg
+        run: ffmpeg -version | head -1 || echo "ffmpeg NOT found"
+
+      - name: Check secrets are set
+        run: |
+          echo "ANTHROPIC_API_KEY set: ${{ secrets.ANTHROPIC_API_KEY != '' }}"
+          echo "SUPABASE_URL set: ${{ secrets.SUPABASE_URL != '' }}"
+          echo "SUPABASE_SERVICE_KEY set: ${{ secrets.SUPABASE_SERVICE_KEY != '' }}"
+
+      - name: Check active window
+        run: |
+          python - <<'EOF'
+          from datetime import datetime, timezone
+          from zoneinfo import ZoneInfo
+          from astral import LocationInfo
+          from astral.sun import sun
+          from datetime import timedelta
+          tz = ZoneInfo("America/Los_Angeles")
+          now_utc = datetime.now(timezone.utc)
+          now_local = now_utc.astimezone(tz)
+          loc = LocationInfo("Lower Trestles", "US", "America/Los_Angeles", 33.3814, -117.5897)
+          s = sun(loc.observer, date=now_local.date(), tzinfo=tz)
+          start = s["sunrise"] - timedelta(hours=1)
+          end   = s["sunset"]  + timedelta(hours=1)
+          active = start <= now_local <= end
+          print(f"UTC now:    {now_utc.strftime('%H:%M:%S')}")
+          print(f"Local now:  {now_local.strftime('%H:%M:%S %Z')}")
+          print(f"Window:     {start.strftime('%H:%M')} – {end.strftime('%H:%M %Z')}")
+          print(f"Active:     {active}")
+          EOF
+
       - name: Run sample cycle
         run: python src/scheduler.py --once --force
         env:
