@@ -43,7 +43,6 @@ def main():
         "count_reliable": False,
         "count_method": "test",
         "claude_notes": "connectivity test — safe to delete",
-        "session_quality": "test",
     }
     row_id = db.write_observation(record)
     if row_id:
