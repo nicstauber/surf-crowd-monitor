@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Caltrans CCTV Explorer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0f12; --surface: #161a1f; --border: #252b33;
+      --text: #e2e8f0; --muted: #64748b; --accent: #3b82f6;
+      --green: #22c55e; --red: #ef4444;
+    }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+    body { background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; min-height: 100vh; }
+
+    header {
+      padding: 20px 28px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; background: rgba(13,15,18,0.92);
+      backdrop-filter: blur(12px); z-index: 100;
+    }
+    .header-left h1 { font-size: 15px; font-weight: 600; }
+    .header-left p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+
+    .status-pill {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--muted);
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 5px 10px; border-radius: 20px;
+    }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+    .district-tabs {
+      display: flex; gap: 2px; padding: 10px 28px 0;
+      border-bottom: 1px solid var(--border); overflow-x: auto;
+    }
+    .district-tab {
+      font-size: 12px; padding: 6px 12px; border-radius: 6px 6px 0 0;
+      cursor: pointer; color: var(--muted); background: none;
+      border: 1px solid transparent; border-bottom: none;
+      font-family: inherit; white-space: nowrap; position: relative; bottom: -1px;
+    }
+    .district-tab:hover { color: var(--text); }
+    .district-tab.active { color: var(--text); background: var(--bg); border-color: var(--border); border-bottom-color: var(--bg); }
+
+    .controls {
+      padding: 14px 28px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    input[type="search"], select {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); padding: 7px 12px; border-radius: 8px;
+      font-size: 13px; font-family: inherit; outline: none;
+    }
+    input[type="search"] { width: 260px; }
+    input[type="search"]:focus { border-color: var(--accent); }
+    .count-label { font-size: 12px; color: var(--muted); margin-left: auto; }
+    .toggle-btn {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--muted); padding: 5px 10px; border-radius: 8px;
+      font-size: 12px; font-family: inherit; cursor: pointer;
+    }
+    .toggle-btn:hover { color: var(--text); border-color: var(--accent); }
+
+    .grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1px; background: var(--border);
+    }
+    .cam-card { background: var(--bg); overflow: hidden; }
+    .cam-card:hover { background: #111418; }
+
+    .cam-img-wrap { position: relative; aspect-ratio: 16/9; background: var(--surface); overflow: hidden; }
+    .cam-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .no-img {
+      width: 100%; height: 100%; display: flex; align-items: center;
+      justify-content: center; color: var(--muted); font-size: 12px;
+      flex-direction: column; gap: 8px;
+    }
+    .img-badge {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(0,0,0,0.7); color: var(--text);
+      font-size: 10px; font-family: 'JetBrains Mono', monospace;
+      padding: 3px 7px; border-radius: 4px;
+    }
+    .status-badge {
+      position: absolute; top: 8px; left: 8px;
+      font-size: 10px; padding: 3px 7px; border-radius: 4px;
+      font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .status-badge.active   { background: rgba(34,197,94,0.2);  color: var(--green); }
+    .status-badge.inactive { background: rgba(239,68,68,0.2);  color: var(--red); }
+    .status-badge.unknown  { background: rgba(100,116,139,0.2); color: var(--muted); }
+
+    .cam-info { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 5px; }
+    .cam-name { font-size: 13px; font-weight: 600; line-height: 1.3; }
+    .cam-location { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+    .cam-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+    .meta-tag {
+      font-size: 10px; font-family: 'JetBrains Mono', monospace;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--muted); padding: 2px 7px; border-radius: 4px;
+    }
+    .meta-tag.highway { color: var(--accent); border-color: rgba(59,130,246,0.3); background: rgba(59,130,246,0.08); }
+    .cam-coords { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: #334155; }
+
+    #loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px; gap: 14px; color: var(--muted); font-size: 14px; }
+    .spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #error { display: none; padding: 32px 28px; }
+    .error-box { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); border-radius: 10px; padding: 16px 20px; }
+    .error-box h3 { color: var(--red); font-size: 13px; margin-bottom: 6px; }
+    .error-box p { color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .error-box code { font-family: 'JetBrains Mono', monospace; color: #94a3b8; font-size: 11px; background: var(--surface); padding: 2px 5px; border-radius: 3px; }
+
+    #raw-panel { display: none; background: var(--surface); border-top: 1px solid var(--border); padding: 20px 28px; }
+    #raw-panel pre { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #94a3b8; max-height: 280px; overflow-y: auto; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Caltrans CCTV Explorer</h1>
+    <p>cwwp2.dot.ca.gov — real-time camera status</p>
+  </div>
+  <div class="header-right">
+    <button class="toggle-btn" onclick="toggleRaw()">{ } JSON</button>
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      <span id="last-fetched">Loading…</span>
+    </div>
+  </div>
+</header>
+
+<div class="district-tabs" id="district-tabs"></div>
+
+<div class="controls">
+  <input type="search" id="search" placeholder="Search name, route, county…" oninput="filterCams()" />
+  <select id="status-filter" onchange="filterCams()">
+    <option value="">All statuses</option>
+    <option value="active">Active</option>
+    <option value="inactive">Inactive</option>
+  </select>
+  <span class="count-label" id="count-label"></span>
+</div>
+
+<div id="loading"><div class="spinner"></div><span>Fetching camera data…</span></div>
+<div id="error">
+  <div class="error-box">
+    <h3>⚠ Could Not Reach Proxy — Showing Demo Data</h3>
+    <p>The proxy at <code id="proxy-url-display"></code> did not respond.<br/><br/>
+    Deploy <code>cloudflare/caltrans-proxy.js</code> as a Cloudflare Worker, then set
+    <code>PROXY_BASE</code> at the top of this page to your worker URL.<br/><br/>
+    Demo data below reflects the real API schema.</p>
+  </div>
+</div>
+<div id="raw-panel"><pre id="raw-content"></pre></div>
+<div class="grid" id="cam-grid"></div>
+
+<script>
+// ---------------------------------------------------------------------------
+// CONFIG — set this to your deployed Cloudflare Worker URL (no trailing slash)
+// e.g. 'https://caltrans-proxy.your-name.workers.dev'
+// Leave null to skip live fetch and use demo data immediately.
+// ---------------------------------------------------------------------------
+const PROXY_BASE = null;
+
+const DISTRICTS = [
+  { id: 'D03', label: 'D03 Sacramento' },
+  { id: 'D04', label: 'D04 Bay Area' },
+  { id: 'D07', label: 'D07 LA/Ventura' },
+  { id: 'D08', label: 'D08 San Bernardino' },
+  { id: 'D11', label: 'D11 San Diego' },
+  { id: 'D12', label: 'D12 Orange County' },
+];
+
+const DEMO = [
+  { id: 1001, location: { locationName: 'I-5 N/O Alvarado St',        latitude: 34.052, longitude: -118.244, county: 'LA'      }, imageData: { url: null }, activity: { state: 'active'   } },
+  { id: 1002, location: { locationName: 'US-101 AT Cahuenga Pass',     latitude: 34.134, longitude: -118.333, county: 'LA'      }, imageData: { url: null }, activity: { state: 'active'   } },
+  { id: 1003, location: { locationName: 'I-405 N/O Getty Center Dr',   latitude: 34.077, longitude: -118.453, county: 'LA'      }, imageData: { url: null }, activity: { state: 'active'   } },
+  { id: 1004, location: { locationName: 'SR-2 AT Glendale Fwy',        latitude: 34.121, longitude: -118.235, county: 'LA'      }, imageData: { url: null }, activity: { state: 'inactive' } },
+  { id: 1005, location: { locationName: 'I-10 AT La Cienega Blvd',     latitude: 34.024, longitude: -118.381, county: 'LA'      }, imageData: { url: null }, activity: { state: 'active'   } },
+  { id: 1006, location: { locationName: 'I-110 S/O Adams Blvd',        latitude: 34.018, longitude: -118.273, county: 'LA'      }, imageData: { url: null }, activity: { state: 'active'   } },
+  { id: 1007, location: { locationName: 'SR-134 AT Colorado St',       latitude: 34.148, longitude: -118.189, county: 'LA'      }, imageData: { url: null }, activity: { state: 'active'   } },
+  { id: 1008, location: { locationName: 'I-605 AT Live Oak Ave',        latitude: 34.061, longitude: -118.033, county: 'LA'      }, imageData: { url: null }, activity: { state: 'inactive' } },
+  { id: 1009, location: { locationName: 'SR-118 AT Topanga Canyon Blvd', latitude: 34.241, longitude: -118.602, county: 'Ventura' }, imageData: { url: null }, activity: { state: 'active'   } },
+  { id: 1010, location: { locationName: 'US-101 AT Ventura Ave',        latitude: 34.275, longitude: -119.231, county: 'Ventura' }, imageData: { url: null }, activity: { state: 'active'   } },
+  { id: 1011, location: { locationName: 'I-5 AT Castaic Junction',      latitude: 34.488, longitude: -118.628, county: 'LA'      }, imageData: { url: null }, activity: { state: 'active'   } },
+  { id: 1012, location: { locationName: 'I-210 AT Foothill Blvd',       latitude: 34.181, longitude: -118.103, county: 'LA'      }, imageData: { url: null }, activity: { state: 'active'   } },
+];
+
+let allCams = [], currentDistrict = 'D07';
+
+function buildTabs() {
+  const el = document.getElementById('district-tabs');
+  DISTRICTS.forEach(d => {
+    const tab = document.createElement('button');
+    tab.className = 'district-tab' + (d.id === currentDistrict ? ' active' : '');
+    tab.textContent = d.label;
+    tab.onclick = () => {
+      currentDistrict = d.id;
+      document.querySelectorAll('.district-tab').forEach((t, i) =>
+        t.classList.toggle('active', DISTRICTS[i].id === d.id));
+      loadCams(d.id);
+    };
+    el.appendChild(tab);
+  });
+}
+
+function extractHwy(name) {
+  const m = (name || '').match(/(I-\d+|US-\d+|SR-\d+|CA-\d+)/i);
+  return m ? m[1].toUpperCase() : '';
+}
+
+function normalize(raw) {
+  if (!Array.isArray(raw)) raw = [];
+  return raw.map(c => {
+    const cc = c.cctv || c;
+    const loc = cc.location || {};
+    const img = cc.imageData || {};
+    const act = cc.activity || {};
+    return {
+      id:       cc.id || '',
+      name:     loc.locationName || loc.name || 'Unknown',
+      lat:      loc.latitude,
+      lng:      loc.longitude,
+      county:   loc.county || '',
+      imageUrl: img.url || null,
+      status:   (act.state || 'unknown').toLowerCase(),
+      highway:  extractHwy(loc.locationName),
+      direction: loc.direction || '',
+      updated:  img.lastUpdated || null,
+    };
+  });
+}
+
+async function loadCams(district) {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('cam-grid').innerHTML = '';
+  document.getElementById('error').style.display = 'none';
+
+  // Fall back to demo immediately if no proxy is configured
+  if (!PROXY_BASE) {
+    useDemoData('PROXY_BASE not configured — set it to your Cloudflare Worker URL');
+    return;
+  }
+
+  const num  = district.replace('D', '').padStart(2, '0');
+  const path = `d${num}/cctv/cctvStatus${district}.json`;
+  const url  = `${PROXY_BASE}/${path}`;
+
+  document.getElementById('proxy-url-display').textContent = url;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const items = data?.data?.items || data?.items || data?.cctv || (Array.isArray(data) ? data : []);
+    document.getElementById('raw-content').textContent = JSON.stringify(data, null, 2).slice(0, 6000);
+    document.getElementById('last-fetched').textContent = 'Live · ' + new Date().toLocaleTimeString();
+    allCams = normalize(items);
+  } catch (err) {
+    useDemoData(err.message);
+    return;
+  }
+
+  document.getElementById('loading').style.display = 'none';
+  filterCams();
+}
+
+function useDemoData(reason) {
+  console.warn('Falling back to demo data:', reason);
+  document.getElementById('error').style.display = 'block';
+  document.getElementById('raw-content').textContent =
+    '// Demo data — real schema\n\n' + JSON.stringify(DEMO.slice(0, 3), null, 2);
+  document.getElementById('last-fetched').textContent = 'Demo mode';
+  allCams = normalize(DEMO);
+  document.getElementById('loading').style.display = 'none';
+  filterCams();
+}
+
+function renderCams(cams) {
+  const grid = document.getElementById('cam-grid');
+  grid.innerHTML = '';
+  document.getElementById('count-label').textContent = cams.length + ' cameras';
+
+  if (!cams.length) {
+    grid.innerHTML = '<div style="padding:40px;color:#64748b;font-size:14px;grid-column:1/-1;text-align:center;">No cameras match.</div>';
+    return;
+  }
+
+  cams.forEach(cam => {
+    const card = document.createElement('div');
+    card.className = 'cam-card';
+    const sc = cam.status === 'active' ? 'active' : cam.status === 'inactive' ? 'inactive' : 'unknown';
+    const imgEl = cam.imageUrl
+      ? `<img src="${cam.imageUrl}" alt="${cam.name}" loading="lazy" onerror="this.style.display='none'" />`
+      : `<div class="no-img"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M16 6l-4-4-4 4"/></svg><span>No image</span></div>`;
+    const coords  = cam.lat ? `${parseFloat(cam.lat).toFixed(4)}, ${parseFloat(cam.lng).toFixed(4)}` : '';
+    const updated = cam.updated ? new Date(cam.updated).toLocaleTimeString() : '';
+
+    card.innerHTML = `
+      <div class="cam-img-wrap">
+        ${imgEl}
+        <span class="status-badge ${sc}">${cam.status}</span>
+        ${updated ? `<span class="img-badge">${updated}</span>` : ''}
+      </div>
+      <div class="cam-info">
+        <div class="cam-name">${cam.name}</div>
+        ${cam.county ? `<div class="cam-location">&#x1F4CD; ${cam.county} County</div>` : ''}
+        <div class="cam-meta">
+          ${cam.highway   ? `<span class="meta-tag highway">${cam.highway}</span>` : ''}
+          ${cam.direction ? `<span class="meta-tag">${cam.direction}</span>` : ''}
+          ${cam.id        ? `<span class="meta-tag">ID ${cam.id}</span>` : ''}
+        </div>
+        ${coords ? `<div class="cam-coords">${coords}</div>` : ''}
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function filterCams() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const s = document.getElementById('status-filter').value;
+  renderCams(allCams.filter(c =>
+    (!q || c.name.toLowerCase().includes(q) || c.highway.toLowerCase().includes(q) || c.county.toLowerCase().includes(q)) &&
+    (!s || c.status === s)
+  ));
+}
+
+let rawOpen = false;
+function toggleRaw() {
+  rawOpen = !rawOpen;
+  document.getElementById('raw-panel').style.display = rawOpen ? 'block' : 'none';
+}
+
+buildTabs();
+loadCams('D07');
+</script>
+</body>
+</html>

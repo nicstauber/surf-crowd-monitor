@@ -1,0 +1,6 @@
+name = "caltrans-proxy"
+main = "caltrans-proxy.js"
+compatibility_date = "2024-01-01"
+
+[build]
+# No build step needed — plain ES module worker
