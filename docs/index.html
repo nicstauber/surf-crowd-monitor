@@ -441,19 +441,25 @@
 const SUPABASE_URL      = 'https://htqizzhtueybtqbwcmiq.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0cWl6emh0dWV5YnRxYndjbWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwNTk5MzQsImV4cCI6MjA4OTYzNTkzNH0.7ezUGo82i6iHs3K9OsPzHuKzgUeENVahI7b_839Dha4';
 
-const SPOTS = [
-  { id: 'lower_trestles', name: 'Lower Trestles', surflineId: '5842041f4e65fad6a770888a' },
-  { id: 'newport_56th',   name: 'Newport 56th',   surflineId: '5842041f4e65fad6a7708e54' },
-  { id: 'hb_pier_south',  name: 'HB Pier South',  surflineId: '5842041f4e65fad6a77088ed' },
-  { id: 'hb_cliffs',      name: 'HB Cliffs',      surflineId: '5842041f4e65fad6a77088ea' },
+// Spots and colors are loaded dynamically from spots.json (symlinked to config/spots.json).
+// To add a new spot, edit config/spots.json — no dashboard changes needed.
+let SPOTS  = [];
+const PALETTE = [
+  '#38bdf8','#818cf8','#f472b6','#fb923c',
+  '#34d399','#a78bfa','#fbbf24','#f87171',
 ];
+let COLORS = {};
 
-const COLORS = {
-  lower_trestles: '#38bdf8',
-  hb_pier_south:  '#a78bfa',
-  hb_cliffs:      '#34d399',
-  newport_56th:   '#fb923c',
-};
+async function loadSpots() {
+  const res  = await fetch('spots.json');
+  const json = await res.json();
+  SPOTS  = json.spots
+    .filter(s => s.enabled)
+    .map(s => ({ id: s.id, name: s.name, surflineId: s.surfline_spot_id }));
+  COLORS = Object.fromEntries(
+    SPOTS.map((s, i) => [s.id, PALETTE[i % PALETTE.length]])
+  );
+}
 
 // ── Init Supabase ──────────────────────────────────────────────────────────
 const { createClient } = supabase;
@@ -959,6 +965,7 @@ function setupFlipHandler() {
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 async function init() {
+  await loadSpots();
   renderSkeletons();
   setupFlipHandler();
   await Promise.all([fetchLatest(), fetchAndRenderHistory(activeHrs)]);
