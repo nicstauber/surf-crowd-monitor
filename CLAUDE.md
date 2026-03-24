@@ -25,9 +25,13 @@ Working spike script: `surf_spike_v6.py`
 | Key | Surfline slug |
 |-----|--------------|
 | `lower_trestles` | `wc-lowerslefts` |
+| `upper_trestles` | `wc-uppertrestles` |
+| `doheny_second_spot` | `wc-secondspotdoheny` |
 | `hb_pier_south` | `wc-huntingtonbeachsouthside` |
 | `hb_cliffs` | `wc-huntingtoncliffs` |
 | `newport_56th` | `wc-fiftysixnewport` |
+| `el_porto` | `wc-elporto` |
+| `malibu` | `wc-malibu` |
 
 All HLS streams follow: `https://hls.cdn-surfline.com/oregon/[slug]/playlist.m3u8`
 
