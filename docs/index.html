@@ -833,7 +833,7 @@ async function fetchLatest() {
   });
 
   document.getElementById('lastUpdated').textContent =
-    `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    `Updated ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles' })} PT`;
 }
 
 // ── History chart ──────────────────────────────────────────────────────────
@@ -917,7 +917,7 @@ async function fetchAndRenderHistory(hours) {
             bodyFont:        { family: 'Inter', size: 12 },
             callbacks: {
               title: items => new Date(items[0].parsed.x)
-                .toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }),
+                .toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'America/Los_Angeles' }),
               label: item  => ` ${item.dataset.label}: ${item.parsed.y} surfers`,
             },
           },
