@@ -30,8 +30,8 @@ Working spike script: `surf_spike_v6.py`
 | `hb_pier_south` | `wc-huntingtonbeachsouthside` |
 | `hb_cliffs` | `wc-huntingtoncliffs` |
 | `newport_56th` | `wc-fiftysixnewport` |
-| `el_porto` | `wc-elporto` |
-| `malibu` | `wc-malibu` |
+| `el_porto` | `wc-elporto43rd` |
+| `malibu` | `wc-malibusurfrider` |
 
 All HLS streams follow: `https://hls.cdn-surfline.com/oregon/[slug]/playlist.m3u8`
 
