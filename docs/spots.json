@@ -22,7 +22,7 @@
     },
     {
       "id": "doheny_second_spot",
-      "name": "Doheny State Beach",
+      "name": "Doheny - The Hammer",
       "hls_slug": "wc-secondspotdoheny",
       "surfline_spot_id": "5842041f4e65fad6a77088d7",
       "lat": 33.4614,
@@ -52,7 +52,7 @@
     },
     {
       "id": "hb_cliffs",
-      "name": "HB Cliffs",
+      "name": "North HB - Goldenwest",
       "hls_slug": "wc-goldenwest",
       "surfline_spot_id": "5842041f4e65fad6a77088ea",
       "lat": 33.6580,
@@ -61,8 +61,28 @@
       "enabled": true
     },
     {
+      "id": "north_hb_20th",
+      "name": "North HB - 20th Street",
+      "hls_slug": "wc-twentiethst",
+      "surfline_spot_id": "5842041f4e65fad6a77088ea",
+      "lat": 33.6630,
+      "lng": -118.0070,
+      "timezone": "America/Los_Angeles",
+      "enabled": true
+    },
+    {
+      "id": "bolsa_chica_tower17",
+      "name": "Bolsa Chica - Tower 17",
+      "hls_slug": "wc-tower17southbolsa",
+      "surfline_spot_id": "5842041f4e65fad6a77088e8",
+      "lat": 33.7100,
+      "lng": -118.0630,
+      "timezone": "America/Los_Angeles",
+      "enabled": true
+    },
+    {
       "id": "el_porto",
-      "name": "El Porto",
+      "name": "El Porto - 42nd Street",
       "hls_slug": "wc-elporto42nd",
       "surfline_spot_id": "5842041f4e65fad6a7708906",
       "lat": 33.9009,
@@ -72,7 +92,7 @@
     },
     {
       "id": "malibu",
-      "name": "Malibu (First Point)",
+      "name": "Malibu - Surfrider Beach",
       "hls_slug": "wc-malibusurfrider",
       "surfline_spot_id": "584204214e65fad6a7709b9f",
       "lat": 34.0382,
