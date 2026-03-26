@@ -13,7 +13,7 @@
     {
       "id": "upper_trestles",
       "name": "Upper Trestles",
-      "hls_slug": "wc-uppertrestles",
+      "hls_slug": "wc-upperstrestles",
       "surfline_spot_id": "5842041f4e65fad6a7708887",
       "lat": 33.3858,
       "lng": -117.5881,
@@ -63,8 +63,8 @@
     {
       "id": "el_porto",
       "name": "El Porto",
-      "hls_slug": "wc-elporto",
-      "surfline_spot_id": "5842041f4e65fad6a7708905",
+      "hls_slug": "wc-elporto42nd",
+      "surfline_spot_id": "5842041f4e65fad6a7708906",
       "lat": 33.9009,
       "lng": -118.4156,
       "timezone": "America/Los_Angeles",
@@ -73,8 +73,8 @@
     {
       "id": "malibu",
       "name": "Malibu (First Point)",
-      "hls_slug": "wc-malibu",
-      "surfline_spot_id": "5842041f4e65fad6a770882f",
+      "hls_slug": "wc-malibusurfrider",
+      "surfline_spot_id": "584204214e65fad6a7709b9f",
       "lat": 34.0382,
       "lng": -118.6794,
       "timezone": "America/Los_Angeles",
