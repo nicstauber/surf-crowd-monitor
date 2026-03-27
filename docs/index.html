@@ -130,7 +130,7 @@
       padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 20px;
     }
 
     /* ── Back card content ───────────────────────────────────────────────── */
@@ -166,7 +166,7 @@
       color: var(--text-dim);
     }
     .back-section {
-      padding-top: 12px;
+      padding-top: 16px;
       border-top: 1px solid var(--border);
     }
     .back-section-label {
@@ -392,59 +392,40 @@
     .range-tab.active { background: var(--surface); color: var(--text); }
 
     /* ── Popular Times (card back) ───────────────────────────────────────── */
-    .pt-section { padding-top: 12px; border-top: 1px solid var(--border); }
-    .pt-day-tabs {
-      display: flex;
-      gap: 2px;
-      background: rgba(255,255,255,0.04);
-      border-radius: 8px;
-      padding: 3px;
-      margin-bottom: 10px;
-    }
-    .pt-day-tab {
-      flex: 1;
-      font-family: 'Inter', sans-serif;
+    .pt-section { padding-top: 16px; border-top: 1px solid var(--border); }
+    .pt-day-name {
       font-size: 10px;
-      font-weight: 500;
-      padding: 4px 0;
-      border-radius: 6px;
-      cursor: pointer;
-      color: var(--text-muted);
-      border: none;
-      background: transparent;
-      transition: all 0.15s;
-      text-align: center;
+      font-weight: 600;
+      color: var(--text-dim);
+      margin-bottom: 3px;
     }
-    .pt-day-tab:hover  { color: var(--text-dim); }
-    .pt-day-tab.active { background: var(--surface); color: var(--text); }
     .pt-header {
       font-size: 11px;
       font-weight: 600;
       color: var(--accent);
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       min-height: 14px;
     }
-    .pt-chart-area { position: relative; }
     .pt-chart {
       display: flex;
-      align-items: flex-end;
+      align-items: stretch;
       gap: 2px;
-      height: 72px;
+      height: 120px;
     }
     .pt-bar-col {
       flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 3px;
-      cursor: pointer;
+      justify-content: flex-end;
       position: relative;
+      cursor: pointer;
     }
     .pt-bar {
       width: 100%;
       border-radius: 3px 3px 0 0;
       min-height: 2px;
-      transition: opacity 0.15s, filter 0.15s;
+      transition: opacity 0.15s;
     }
     .pt-bar-col.future .pt-bar { opacity: 0.35; }
     .pt-bar-col.current .pt-bar {
@@ -452,14 +433,37 @@
       outline-offset: 1px;
     }
     .pt-bar-col.no-data .pt-bar { background: rgba(255,255,255,0.08) !important; }
-    .pt-bar-label {
+    .pt-axis {
+      display: flex;
+      gap: 2px;
+      margin-top: 4px;
+    }
+    .pt-axis-label {
+      flex: 1;
       font-size: 8px;
       color: var(--text-muted);
-      white-space: nowrap;
-      visibility: hidden; /* shown only every 2hrs */
+      text-align: center;
+      visibility: hidden;
     }
-    .pt-bar-col.show-label .pt-bar-label { visibility: visible; }
-    .pt-bar-col.current .pt-bar-label { color: var(--accent); visibility: visible; }
+    .pt-axis-label.show    { visibility: visible; }
+    .pt-axis-label.current { color: var(--accent); visibility: visible; }
+    .pt-dots {
+      display: flex;
+      justify-content: center;
+      gap: 7px;
+      padding: 10px 0 2px;
+    }
+    .pt-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.18);
+      cursor: pointer;
+      transition: background 0.15s, transform 0.15s;
+    }
+    .pt-dot:hover  { background: rgba(255,255,255,0.38); }
+    .pt-dot.active { background: var(--accent); transform: scale(1.25); }
+    .pt-dot.active:hover { background: var(--accent); }
     .pt-callout {
       display: none;
       position: absolute;
@@ -501,7 +505,7 @@
       white-space: nowrap;
     }
     .hm-cell {
-      aspect-ratio: 1;
+      height: 22px;
       border-radius: 3px;
       cursor: default;
       transition: transform 0.1s, filter 0.1s;
@@ -541,6 +545,8 @@
       color: var(--text-muted);
       text-align: center;
       line-height: 1.4;
+      min-width: 0;
+      overflow: hidden;
     }
     .hm-date-label.today { color: var(--accent); }
     .hm-spacer { /* fills label column in date row */ }
@@ -920,22 +926,21 @@ function popularTimesLabel(focusedAvg, dayAvgs) {
   return 'Usually packed';
 }
 
-// Build just the bar chart row (re-used when switching days)
+// Build bar chart + axis row (re-used when switching days)
 function renderPTChart(dayAvgs, selectedDay, currentHour, isToday) {
-  const maxAvg = Math.max(1, ...dayAvgs.map(x => x.avg ?? 0));
+  const maxAvg      = Math.max(1, ...dayAvgs.map(x => x.avg ?? 0));
   const showLabelAt = new Set([5, 7, 9, 11, 13, 15, 17, 19]);
 
-  const bars = dayAvgs.map(({ hour, avg, count }) => {
-    const heightPct = avg !== null ? Math.max(3, (avg / maxAvg) * 100) : 0;
+  const barCols = dayAvgs.map(({ hour, avg, count }) => {
+    const heightPct = avg !== null ? Math.max(4, (avg / maxAvg) * 100) : 0;
     const noData    = avg === null;
     const isCurrent = isToday && hour === currentHour;
     const isFuture  = isToday && hour > currentHour;
     const classes   = [
       'pt-bar-col',
-      noData    ? 'no-data'   : '',
-      isCurrent ? 'current'   : '',
-      isFuture  ? 'future'    : '',
-      showLabelAt.has(hour) ? 'show-label' : '',
+      noData    ? 'no-data'  : '',
+      isCurrent ? 'current'  : '',
+      isFuture  ? 'future'   : '',
     ].filter(Boolean).join(' ');
 
     const callout = noData
@@ -944,15 +949,24 @@ function renderPTChart(dayAvgs, selectedDay, currentHour, isToday) {
 
     return `<div class="${classes}" data-hour="${hour}" data-avg="${avg ?? ''}" data-count="${count}">
       <div class="pt-bar" style="height:${heightPct}%;background:${noData ? '' : PT_BAR_COLOR}"></div>
-      <div class="pt-bar-label">${formatHourShort(hour)}</div>
       <div class="pt-callout">${callout}</div>
     </div>`;
-  });
+  }).join('');
 
-  return `<div class="pt-chart" data-is-today="${isToday ? '1' : '0'}" data-current-hour="${currentHour}">${bars.join('')}</div>`;
+  const axisLabels = dayAvgs.map(({ hour }) => {
+    const isCurrent = isToday && hour === currentHour;
+    const cls = ['pt-axis-label',
+      isCurrent ? 'current' : (showLabelAt.has(hour) ? 'show' : ''),
+    ].filter(Boolean).join(' ');
+    return `<div class="${cls}">${formatHourShort(hour)}</div>`;
+  }).join('');
+
+  return `<div class="pt-chart">${barCols}</div><div class="pt-axis">${axisLabels}</div>`;
 }
 
-// Full Popular Times section HTML (day tabs + label + chart)
+const PT_FULL_DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+// Full Popular Times section HTML (day name + label + chart + dots)
 function renderPopularTimesHTML(hourlyByDay, selectedDay, currentHour) {
   const today   = new Date().getDay();
   const isToday = selectedDay === today;
@@ -963,14 +977,15 @@ function renderPopularTimesHTML(hourlyByDay, selectedDay, currentHour) {
   const crowdLabel = popularTimesLabel(focusEntry?.avg ?? null, dayAvgs);
   const labelText  = crowdLabel ? `${formatHour12(focusHour)}: ${crowdLabel}` : '';
 
-  const tabs = PT_DAYS.map((d, i) =>
-    `<button class="pt-day-tab${i === selectedDay ? ' active' : ''}" data-day="${i}">${d}</button>`
+  const dots = PT_DAYS.map((d, i) =>
+    `<div class="pt-dot${i === selectedDay ? ' active' : ''}" data-day="${i}" title="${PT_FULL_DAYS[i]}"></div>`
   ).join('');
 
   return `
-    <div class="pt-day-tabs">${tabs}</div>
+    <div class="pt-day-name">${PT_FULL_DAYS[selectedDay]}</div>
     <div class="pt-header">${labelText}</div>
-    ${renderPTChart(dayAvgs, selectedDay, currentHour, isToday)}`;
+    ${renderPTChart(dayAvgs, selectedDay, currentHour, isToday)}
+    <div class="pt-dots">${dots}</div>`;
 }
 
 // Render full back-card HTML
@@ -994,7 +1009,7 @@ function renderBackHTML(spot, obs, hourlyByDay, hourStats, condStats) {
 
   // Popular Times section
   const ptSection = `
-    <div class="pt-section">
+    <div class="pt-section" data-selected-day="${currentDay}">
       <div class="back-section-label">Popular times · last 30 days</div>
       ${renderPopularTimesHTML(hourlyByDay, currentDay, currentHour)}
     </div>`;
@@ -1062,11 +1077,11 @@ async function ensureBackLoaded(cardEl) {
 // ── Crowd Heatmap ──────────────────────────────────────────────────────────
 
 const HM_TIERS = [
-  { max: 0,        color: 'rgba(52,211,153,0.15)',  label: 'EMPTY'  },
-  { max: 5,        color: 'rgba(52,211,153,0.40)',  label: 'LOW'    },
-  { max: 12,       color: 'rgba(56,189,248,0.50)',  label: 'NORMAL' },
-  { max: 20,       color: 'rgba(251,146,60,0.65)',  label: 'BUSY'   },
-  { max: Infinity, color: 'rgba(248,113,113,0.80)', label: 'PACKED' },
+  { max: 0,        color: 'rgba(56,189,248,0.10)', label: 'Empty'    },
+  { max: 5,        color: 'rgba(56,189,248,0.28)', label: 'Low'      },
+  { max: 12,       color: 'rgba(56,189,248,0.52)', label: 'Moderate' },
+  { max: 20,       color: 'rgba(56,189,248,0.76)', label: 'Busy'     },
+  { max: Infinity, color: 'rgba(56,189,248,1.00)', label: 'Packed'   },
 ];
 
 function hmTier(avg) {
@@ -1165,11 +1180,7 @@ function renderHeatmap(heatData, days) {
 }
 
 function renderHeatmapLegend() {
-  const items = [
-    { color: 'rgba(255,255,255,0.07)', label: 'No data' },
-    ...HM_TIERS.map(t => ({ color: t.color, label: t.label })),
-  ];
-  return items.map(({ color, label }) =>
+  return HM_TIERS.map(({ color, label }) =>
     `<div class="hm-legend-item">
       <div class="hm-legend-swatch" style="background:${color}"></div>
       ${label}
@@ -1232,44 +1243,72 @@ document.getElementById('heatmapTabs').addEventListener('click', e => {
   fetchAndRenderHeatmap(activeDays);
 });
 
+// ── Popular Times day switching ─────────────────────────────────────────────
+function _switchPTDay(section, back, newDay) {
+  const currentHour = new Date().getHours();
+  const today       = new Date().getDay();
+  const isToday     = newDay === today;
+  const hourlyByDay = JSON.parse(back.dataset.ptByDay || '{}');
+  const dayAvgs     = hourlyByDay[newDay] || [];
+
+  section.dataset.selectedDay = newDay;
+
+  // Update dots
+  section.querySelectorAll('.pt-dot').forEach(d =>
+    d.classList.toggle('active', parseInt(d.dataset.day) === newDay)
+  );
+
+  // Update day name
+  const nameEl = section.querySelector('.pt-day-name');
+  if (nameEl) nameEl.textContent = PT_FULL_DAYS[newDay];
+
+  // Replace chart + axis in one shot
+  const oldChart = section.querySelector('.pt-chart');
+  const oldAxis  = section.querySelector('.pt-axis');
+  const tmp      = document.createElement('div');
+  tmp.innerHTML  = renderPTChart(dayAvgs, newDay, currentHour, isToday);
+  if (oldChart) oldChart.replaceWith(tmp.children[0]);  // moves chart out of tmp
+  if (oldAxis)  oldAxis.replaceWith(tmp.children[0]);   // now [0] is the axis
+
+  // Update crowd label
+  const focusHour  = isToday ? Math.max(5, Math.min(19, currentHour)) : 12;
+  const focusEntry = dayAvgs.find(x => x.hour === focusHour);
+  const label      = popularTimesLabel(focusEntry?.avg ?? null, dayAvgs);
+  const headerEl   = section.querySelector('.pt-header');
+  if (headerEl) headerEl.textContent = label ? `${formatHour12(focusHour)}: ${label}` : '';
+}
+
+function _updatePTLabel(section, barCol) {
+  const back = barCol.closest('.card-back');
+  if (!back) return;
+  const day         = parseInt(section.dataset.selectedDay ?? new Date().getDay());
+  const hourlyByDay = JSON.parse(back.dataset.ptByDay || '{}');
+  const dayAvgs     = hourlyByDay[day] || [];
+  const hour        = parseInt(barCol.dataset.hour);
+  const rawAvg      = barCol.dataset.avg;
+  const avg         = rawAvg !== '' ? parseFloat(rawAvg) : null;
+  const label       = popularTimesLabel(avg, dayAvgs);
+  const headerEl    = section.querySelector('.pt-header');
+  if (headerEl) headerEl.textContent = label ? `${formatHour12(hour)}: ${label}` : '';
+}
+
 // ── Flip card + Popular Times event delegation ─────────────────────────────
 function setupFlipHandler() {
   const grid = document.getElementById('spotsGrid');
 
-  // Card flip
+  // Click delegation
   grid.addEventListener('click', async e => {
-    // Day-tab click — switch Popular Times day
-    const dayTab = e.target.closest('.pt-day-tab');
-    if (dayTab) {
+    // Dot click — switch day
+    const dot = e.target.closest('.pt-dot');
+    if (dot) {
       e.stopPropagation();
-      const section    = dayTab.closest('.pt-section');
-      const back       = dayTab.closest('.card-back');
-      const newDay     = parseInt(dayTab.dataset.day);
-      const currentHour = new Date().getHours();
-      const today      = new Date().getDay();
-      const isToday    = newDay === today;
-      const hourlyByDay = JSON.parse(back.dataset.ptByDay || '{}');
-      const dayAvgs    = hourlyByDay[newDay] || [];
-
-      // Update active tab
-      section.querySelectorAll('.pt-day-tab').forEach(t => t.classList.toggle('active', t === dayTab));
-
-      // Replace chart
-      const oldChart = section.querySelector('.pt-chart');
-      const tmp = document.createElement('div');
-      tmp.innerHTML = renderPTChart(dayAvgs, newDay, currentHour, isToday);
-      oldChart.replaceWith(tmp.firstElementChild);
-
-      // Update crowd label
-      const focusHour  = isToday ? Math.max(5, Math.min(19, currentHour)) : 12;
-      const focusEntry = dayAvgs.find(x => x.hour === focusHour);
-      const label      = popularTimesLabel(focusEntry?.avg ?? null, dayAvgs);
-      section.querySelector('.pt-header').textContent =
-        label ? `${formatHour12(focusHour)}: ${label}` : '';
+      const section = dot.closest('.pt-section');
+      const back    = dot.closest('.card-back');
+      _switchPTDay(section, back, parseInt(dot.dataset.day));
       return;
     }
 
-    // Bar-col click (mobile tap)
+    // Bar-col click (mobile tap to show callout + update label)
     const barCol = e.target.closest('.pt-bar-col');
     if (barCol) {
       e.stopPropagation();
@@ -1296,21 +1335,22 @@ function setupFlipHandler() {
     if (!section) return;
     _updatePTLabel(section, barCol);
   });
-}
 
-function _updatePTLabel(section, barCol) {
-  const back    = barCol.closest('.card-back');
-  if (!back) return;
-  const activeTab  = section.querySelector('.pt-day-tab.active');
-  const day        = parseInt(activeTab?.dataset.day ?? new Date().getDay());
-  const hourlyByDay = JSON.parse(back.dataset.ptByDay || '{}');
-  const dayAvgs    = hourlyByDay[day] || [];
-  const hour       = parseInt(barCol.dataset.hour);
-  const rawAvg     = barCol.dataset.avg;
-  const avg        = rawAvg !== '' ? parseFloat(rawAvg) : null;
-  const label      = popularTimesLabel(avg, dayAvgs);
-  section.querySelector('.pt-header').textContent =
-    label ? `${formatHour12(hour)}: ${label}` : '';
+  // Swipe left/right on pt-section to change day
+  let ptSwipeX = 0;
+  grid.addEventListener('touchstart', e => {
+    if (e.target.closest('.pt-section')) ptSwipeX = e.touches[0].clientX;
+  }, { passive: true });
+  grid.addEventListener('touchend', e => {
+    const section = e.target.closest('.pt-section');
+    if (!section) return;
+    const dx = e.changedTouches[0].clientX - ptSwipeX;
+    if (Math.abs(dx) < 30) return;
+    const back    = section.closest('.card-back');
+    const cur     = parseInt(section.dataset.selectedDay ?? new Date().getDay());
+    const newDay  = dx < 0 ? (cur + 1) % 7 : (cur + 6) % 7;
+    _switchPTDay(section, back, newDay);
+  }, { passive: true });
 }
 
 // ── Boot ───────────────────────────────────────────────────────────────────
