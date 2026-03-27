@@ -7,8 +7,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -393,15 +391,177 @@
     .range-tab:hover  { color: var(--text-dim); }
     .range-tab.active { background: var(--surface); color: var(--text); }
 
-    .chart-wrap { position: relative; height: 220px; }
+    /* ── Popular Times (card back) ───────────────────────────────────────── */
+    .pt-section { padding-top: 12px; border-top: 1px solid var(--border); }
+    .pt-day-tabs {
+      display: flex;
+      gap: 2px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 8px;
+      padding: 3px;
+      margin-bottom: 10px;
+    }
+    .pt-day-tab {
+      flex: 1;
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      padding: 4px 0;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--text-muted);
+      border: none;
+      background: transparent;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .pt-day-tab:hover  { color: var(--text-dim); }
+    .pt-day-tab.active { background: var(--surface); color: var(--text); }
+    .pt-header {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 8px;
+      min-height: 14px;
+    }
+    .pt-chart-area { position: relative; }
+    .pt-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 72px;
+    }
+    .pt-bar-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+      position: relative;
+    }
+    .pt-bar {
+      width: 100%;
+      border-radius: 3px 3px 0 0;
+      min-height: 2px;
+      transition: opacity 0.15s, filter 0.15s;
+    }
+    .pt-bar-col.future .pt-bar { opacity: 0.35; }
+    .pt-bar-col.current .pt-bar {
+      outline: 1px solid rgba(255,255,255,0.5);
+      outline-offset: 1px;
+    }
+    .pt-bar-col.no-data .pt-bar { background: rgba(255,255,255,0.08) !important; }
+    .pt-bar-label {
+      font-size: 8px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      visibility: hidden; /* shown only every 2hrs */
+    }
+    .pt-bar-col.show-label .pt-bar-label { visibility: visible; }
+    .pt-bar-col.current .pt-bar-label { color: var(--accent); visibility: visible; }
+    .pt-callout {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border-hover);
+      border-radius: 8px;
+      padding: 6px 9px;
+      font-size: 10px;
+      color: var(--text);
+      white-space: nowrap;
+      z-index: 5;
+      pointer-events: none;
+      text-align: center;
+      line-height: 1.5;
+    }
+    .pt-bar-col:hover .pt-callout,
+    .pt-bar-col.tapped .pt-callout { display: block; }
 
-    .no-history {
-      height: 220px;
+    /* ── Heatmap (bottom section) ─────────────────────────────────────────── */
+    .hm-grid-wrap { overflow-x: auto; }
+    .hm-grid {
+      display: grid;
+      /* columns set inline by JS: [label] repeat(N, 1fr) */
+      gap: 3px;
+      min-width: 0;
+    }
+    .hm-spot-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-align: right;
+      padding-right: 8px;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-end;
+      white-space: nowrap;
+    }
+    .hm-cell {
+      aspect-ratio: 1;
+      border-radius: 3px;
+      cursor: default;
+      transition: transform 0.1s, filter 0.1s;
+      position: relative;
+    }
+    .hm-cell:hover {
+      transform: scale(1.15);
+      filter: brightness(1.3);
+      z-index: 2;
+    }
+    /* CSS tooltip via data-tip */
+    .hm-cell::after {
+      content: attr(data-tip);
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border-hover);
+      border-radius: 7px;
+      padding: 5px 9px;
+      font-size: 10px;
+      color: var(--text);
+      white-space: pre;
+      z-index: 10;
+      pointer-events: none;
+      text-align: center;
+      line-height: 1.6;
+    }
+    .hm-cell:hover::after { display: block; }
+    /* keep tooltip on screen at edges */
+    .hm-cell:first-child::after { left: 0; transform: none; }
+    .hm-cell:last-child::after  { left: auto; right: 0; transform: none; }
+    .hm-date-label {
+      font-size: 9px;
       color: var(--text-muted);
-      font-size: 13px;
+      text-align: center;
+      line-height: 1.4;
+    }
+    .hm-date-label.today { color: var(--accent); }
+    .hm-spacer { /* fills label column in date row */ }
+    .hm-legend {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .hm-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+    .hm-legend-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
     }
   </style>
 </head>
@@ -420,19 +580,19 @@
     <!-- skeleton injected by JS on load -->
   </div>
 
-  <div class="section-label">Surfer Count History</div>
+  <div class="section-label">Crowd History</div>
   <div class="chart-card">
     <div class="chart-header">
-      <div class="chart-title">All spots — reliable counts only</div>
-      <div class="range-tabs">
-        <button class="range-tab active" data-hours="24">24 h</button>
-        <button class="range-tab" data-hours="72">3 d</button>
-        <button class="range-tab" data-hours="168">7 d</button>
+      <div class="chart-title">All spots · avg daily surfers</div>
+      <div class="range-tabs" id="heatmapTabs">
+        <button class="range-tab active" data-days="7">7 d</button>
+        <button class="range-tab" data-days="30">30 d</button>
       </div>
     </div>
-    <div class="chart-wrap">
-      <canvas id="historyChart"></canvas>
+    <div class="hm-grid-wrap">
+      <div id="heatmapGrid"></div>
     </div>
+    <div id="heatmapLegend" class="hm-legend"></div>
   </div>
 </main>
 
@@ -465,8 +625,7 @@ async function loadSpots() {
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-let chart     = null;
-let activeHrs = 24;
+let activeDays = 7;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function timeAgo(iso) {
@@ -705,17 +864,126 @@ function formatHour(h) {
   return `${h12}${ampm}`;
 }
 
+// ── Popular Times ───────────────────────────────────────────────────────────
+
+// Group rows by (day-of-week, hour) for hours 5–19
+function computeHourlyAvgsByDay(rows) {
+  const acc = {};
+  for (let d = 0; d < 7; d++) {
+    acc[d] = {};
+    for (let h = 5; h <= 19; h++) acc[d][h] = { sum: 0, count: 0 };
+  }
+  for (const r of rows) {
+    const dt  = new Date(r.captured_at);
+    const dow = dt.getDay();
+    const h   = dt.getHours();
+    if (h < 5 || h > 19) continue;
+    acc[dow][h].sum   += r.surfer_count;
+    acc[dow][h].count += 1;
+  }
+  const result = {};
+  for (let d = 0; d < 7; d++) {
+    result[d] = [];
+    for (let h = 5; h <= 19; h++) {
+      const { sum, count } = acc[d][h];
+      result[d].push({ hour: h, avg: count > 0 ? sum / count : null, count });
+    }
+  }
+  return result;
+}
+
+const PT_DAYS      = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+const PT_BAR_COLOR = 'rgba(56,189,248,0.65)';
+
+function formatHour12(h) {
+  const suffix = h < 12 ? 'AM' : 'PM';
+  const h12    = h % 12 || 12;
+  return `${h12} ${suffix}`;
+}
+
+function formatHourShort(h) {
+  const suffix = h < 12 ? 'a' : 'p';
+  const h12    = h % 12 || 12;
+  return `${h12}${suffix}`;
+}
+
+// 5-tier crowd label relative to the day's distribution
+function popularTimesLabel(focusedAvg, dayAvgs) {
+  const vals = dayAvgs.filter(x => x.avg !== null).map(x => x.avg);
+  if (!vals.length || focusedAvg === null) return '';
+  const sorted = [...vals].sort((a, b) => a - b);
+  const pct = p => sorted[Math.max(0, Math.floor((p / 100) * sorted.length) - 1)];
+  if (focusedAvg === 0 || focusedAvg <= pct(5))  return 'Usually empty';
+  if (focusedAvg <= pct(30))                      return 'Usually not too busy';
+  if (focusedAvg <= pct(60))                      return 'Usually moderately busy';
+  if (focusedAvg <= pct(85))                      return 'Usually pretty crowded';
+  return 'Usually packed';
+}
+
+// Build just the bar chart row (re-used when switching days)
+function renderPTChart(dayAvgs, selectedDay, currentHour, isToday) {
+  const maxAvg = Math.max(1, ...dayAvgs.map(x => x.avg ?? 0));
+  const showLabelAt = new Set([5, 7, 9, 11, 13, 15, 17, 19]);
+
+  const bars = dayAvgs.map(({ hour, avg, count }) => {
+    const heightPct = avg !== null ? Math.max(3, (avg / maxAvg) * 100) : 0;
+    const noData    = avg === null;
+    const isCurrent = isToday && hour === currentHour;
+    const isFuture  = isToday && hour > currentHour;
+    const classes   = [
+      'pt-bar-col',
+      noData    ? 'no-data'   : '',
+      isCurrent ? 'current'   : '',
+      isFuture  ? 'future'    : '',
+      showLabelAt.has(hour) ? 'show-label' : '',
+    ].filter(Boolean).join(' ');
+
+    const callout = noData
+      ? `${formatHour12(hour)}<br><span style="color:var(--text-muted)">No data</span>`
+      : `${formatHour12(hour)}<br><span style="color:var(--text-dim)">Avg ${Math.round(avg)} surfer${Math.round(avg) !== 1 ? 's' : ''} · ${count} sample${count !== 1 ? 's' : ''}</span>`;
+
+    return `<div class="${classes}" data-hour="${hour}" data-avg="${avg ?? ''}" data-count="${count}">
+      <div class="pt-bar" style="height:${heightPct}%;background:${noData ? '' : PT_BAR_COLOR}"></div>
+      <div class="pt-bar-label">${formatHourShort(hour)}</div>
+      <div class="pt-callout">${callout}</div>
+    </div>`;
+  });
+
+  return `<div class="pt-chart" data-is-today="${isToday ? '1' : '0'}" data-current-hour="${currentHour}">${bars.join('')}</div>`;
+}
+
+// Full Popular Times section HTML (day tabs + label + chart)
+function renderPopularTimesHTML(hourlyByDay, selectedDay, currentHour) {
+  const today   = new Date().getDay();
+  const isToday = selectedDay === today;
+  const dayAvgs = hourlyByDay[selectedDay] || [];
+
+  const focusHour  = isToday ? Math.max(5, Math.min(19, currentHour)) : 12;
+  const focusEntry = dayAvgs.find(x => x.hour === focusHour);
+  const crowdLabel = popularTimesLabel(focusEntry?.avg ?? null, dayAvgs);
+  const labelText  = crowdLabel ? `${formatHour12(focusHour)}: ${crowdLabel}` : '';
+
+  const tabs = PT_DAYS.map((d, i) =>
+    `<button class="pt-day-tab${i === selectedDay ? ' active' : ''}" data-day="${i}">${d}</button>`
+  ).join('');
+
+  return `
+    <div class="pt-day-tabs">${tabs}</div>
+    <div class="pt-header">${labelText}</div>
+    ${renderPTChart(dayAvgs, selectedDay, currentHour, isToday)}`;
+}
+
 // Render full back-card HTML
-function renderBackHTML(spot, obs, hourStats, condStats) {
+function renderBackHTML(spot, obs, hourlyByDay, hourStats, condStats) {
   const count    = obs?.surfer_count;
   const rating   = obs?.spot_rating;
-  const refHour  = obs?.captured_at ? new Date(obs.captured_at).getHours() : new Date().getHours();
+  const currentHour = new Date().getHours();
+  const currentDay  = new Date().getDay();
 
-  // Determine primary level badge
+  // Level badge (uses ±1hr stats for context)
   const primaryStats = hourStats || condStats;
-  const level  = classifyLevel(count, primaryStats);
+  const level       = classifyLevel(count, primaryStats);
   const levelColors = { LOW: '#34d399', NORMAL: '#94a3b8', BUSY: '#fb923c', PACKED: '#f87171' };
-  const levelColor  = level ? levelColors[level] : '#94a3b8';
 
   const badgeHTML = (level && count != null)
     ? `<div class="crowd-level-wrap">
@@ -724,23 +992,12 @@ function renderBackHTML(spot, obs, hourStats, condStats) {
        </div>`
     : `<div class="back-no-data">No recent count to compare</div>`;
 
-  // Time-of-day section
-  let hourSection = '';
-  if (hourStats) {
-    hourSection = `
-      <div class="back-section">
-        <div class="back-section-label">This time of day (${formatHour(Math.max(0, refHour - 1))}–${formatHour(Math.min(23, refHour + 1))})</div>
-        <div class="back-range">${hourStats.p25}–${hourStats.p75} surfers typical</div>
-        <div class="back-samples">${hourStats.count} sample${hourStats.count !== 1 ? 's' : ''} · last 30 days</div>
-        ${barHTML(count, hourStats, levelColor)}
-      </div>`;
-  } else {
-    hourSection = `
-      <div class="back-section">
-        <div class="back-section-label">This time of day</div>
-        <div class="back-no-data">Not enough history yet</div>
-      </div>`;
-  }
+  // Popular Times section
+  const ptSection = `
+    <div class="pt-section">
+      <div class="back-section-label">Popular times · last 30 days</div>
+      ${renderPopularTimesHTML(hourlyByDay, currentDay, currentHour)}
+    </div>`;
 
   // Conditions section
   let condSection = '';
@@ -768,7 +1025,7 @@ function renderBackHTML(spot, obs, hourStats, condStats) {
       <div class="back-title">Crowd Context</div>
     </div>
     ${badgeHTML}
-    ${hourSection}
+    ${ptSection}
     ${condSection}
     <div class="flip-hint">↩ Tap to flip back</div>`;
 }
@@ -787,17 +1044,146 @@ async function ensureBackLoaded(cardEl) {
   try { obs = JSON.parse(cardEl.dataset.obs || 'null'); } catch (_) {}
 
   try {
-    const rows     = await fetchHistoricalRows(spotId);
-    const refDate  = obs?.captured_at ? new Date(obs.captured_at) : new Date();
-    const rating   = obs?.spot_rating ?? null;
-    const hourStats = typicalByHour(rows, refDate);
-    const condStats = typicalByRating(rows, rating);
-    back.innerHTML  = renderBackHTML(spot, obs, hourStats, condStats);
+    const rows        = await fetchHistoricalRows(spotId);
+    const refDate     = obs?.captured_at ? new Date(obs.captured_at) : new Date();
+    const rating      = obs?.spot_rating ?? null;
+    const hourlyByDay = computeHourlyAvgsByDay(rows);
+    const hourStats   = typicalByHour(rows, refDate);
+    const condStats   = typicalByRating(rows, rating);
+    back.innerHTML    = renderBackHTML(spot, obs, hourlyByDay, hourStats, condStats);
+    back.dataset.ptByDay = JSON.stringify(hourlyByDay);
   } catch (e) {
     console.warn('Back card load failed', e);
     back.innerHTML = `<div class="back-no-data" style="margin:auto;text-align:center">Could not load crowd data</div>`;
   }
   back.dataset.loaded = '1';
+}
+
+// ── Crowd Heatmap ──────────────────────────────────────────────────────────
+
+const HM_TIERS = [
+  { max: 0,        color: 'rgba(52,211,153,0.15)',  label: 'EMPTY'  },
+  { max: 5,        color: 'rgba(52,211,153,0.40)',  label: 'LOW'    },
+  { max: 12,       color: 'rgba(56,189,248,0.50)',  label: 'NORMAL' },
+  { max: 20,       color: 'rgba(251,146,60,0.65)',  label: 'BUSY'   },
+  { max: Infinity, color: 'rgba(248,113,113,0.80)', label: 'PACKED' },
+];
+
+function hmTier(avg) {
+  return HM_TIERS.find(t => avg <= t.max) || HM_TIERS[HM_TIERS.length - 1];
+}
+
+function localDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+async function fetchHeatmapData(days) {
+  const since = new Date(Date.now() - days * 86_400_000).toISOString();
+  const { data } = await db
+    .from('observations')
+    .select('spot_id, captured_at, surfer_count')
+    .eq('count_reliable', true)
+    .not('surfer_count', 'is', null)
+    .gte('captured_at', since)
+    .order('captured_at', { ascending: true });
+
+  // Aggregate client-side: Map<spotId, Map<dateStr, {sum, count}>>
+  const agg = new Map();
+  for (const row of (data || [])) {
+    const dateStr = localDateStr(new Date(row.captured_at));
+    if (!agg.has(row.spot_id)) agg.set(row.spot_id, new Map());
+    const spotMap = agg.get(row.spot_id);
+    if (!spotMap.has(dateStr)) spotMap.set(dateStr, { sum: 0, count: 0 });
+    const entry = spotMap.get(dateStr);
+    entry.sum   += row.surfer_count;
+    entry.count += 1;
+  }
+
+  const result = new Map();
+  for (const [spotId, spotMap] of agg) {
+    const avgMap = new Map();
+    for (const [dateStr, { sum, count }] of spotMap) {
+      avgMap.set(dateStr, Math.round(sum / count));
+    }
+    result.set(spotId, avgMap);
+  }
+  return result;
+}
+
+function renderHeatmap(heatData, days) {
+  const DAY_ABBR = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const today    = new Date();
+  const todayStr = localDateStr(today);
+
+  const dates = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    dates.push(d);
+  }
+
+  const gridCols = `120px repeat(${dates.length}, 1fr)`;
+  let html = `<div class="hm-grid" style="grid-template-columns:${gridCols}">`;
+
+  for (const spot of SPOTS) {
+    const spotData = heatData.get(spot.id) || new Map();
+    html += `<div class="hm-spot-label">${spot.name}</div>`;
+    for (const date of dates) {
+      const dateStr    = localDateStr(date);
+      const avg        = spotData.get(dateStr);
+      const isToday    = dateStr === todayStr;
+      const hasData    = avg !== undefined;
+      const displayDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+      let cellColor, tipText;
+      if (!hasData) {
+        cellColor = 'rgba(255,255,255,0.07)';
+        tipText   = `No data on ${displayDate}`;
+      } else {
+        const tier = hmTier(avg);
+        cellColor  = tier.color;
+        tipText    = `${avg} surfer${avg !== 1 ? 's' : ''} avg. on ${displayDate}`;
+      }
+
+      const border = isToday ? 'box-shadow:0 0 0 1px rgba(56,189,248,0.6);' : '';
+      html += `<div class="hm-cell" style="background:${cellColor};${border}" data-tip="${spot.name}&#10;${tipText}"></div>`;
+    }
+  }
+
+  // Date label row
+  html += `<div class="hm-spacer"></div>`;
+  for (const date of dates) {
+    const isToday = localDateStr(date) === todayStr;
+    html += `<div class="hm-date-label${isToday ? ' today' : ''}">${date.getDate()}<br>${DAY_ABBR[date.getDay()]}</div>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function renderHeatmapLegend() {
+  const items = [
+    { color: 'rgba(255,255,255,0.07)', label: 'No data' },
+    ...HM_TIERS.map(t => ({ color: t.color, label: t.label })),
+  ];
+  return items.map(({ color, label }) =>
+    `<div class="hm-legend-item">
+      <div class="hm-legend-swatch" style="background:${color}"></div>
+      ${label}
+    </div>`
+  ).join('');
+}
+
+async function fetchAndRenderHeatmap(days) {
+  const gridEl = document.getElementById('heatmapGrid');
+  const legEl  = document.getElementById('heatmapLegend');
+  gridEl.innerHTML = `<div style="padding:20px 0;color:var(--text-muted);font-size:12px">Loading…</div>`;
+  const heatData   = await fetchHeatmapData(days);
+  gridEl.innerHTML = renderHeatmap(heatData, days);
+  legEl.innerHTML  = renderHeatmapLegend();
 }
 
 // ── Fetch latest observation per spot ─────────────────────────────────────
@@ -836,131 +1222,95 @@ async function fetchLatest() {
     `Updated ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles' })} PT`;
 }
 
-// ── History chart ──────────────────────────────────────────────────────────
-async function fetchAndRenderHistory(hours) {
-  const since = new Date(Date.now() - hours * 3600_000).toISOString();
-
-  const allData = await Promise.all(
-    SPOTS.map(async spot => {
-      const { data } = await db
-        .from('observations')
-        .select('captured_at, surfer_count')
-        .eq('spot_id', spot.id)
-        .eq('count_reliable', true)
-        .not('surfer_count', 'is', null)
-        .gte('captured_at', since)
-        .order('captured_at', { ascending: true });
-      return { spot, data: data || [] };
-    })
-  );
-
-  const datasets = allData
-    .filter(({ data }) => data.length > 0)
-    .map(({ spot, data }) => ({
-      label:           spot.name,
-      data:            data.map(d => ({ x: new Date(d.captured_at), y: d.surfer_count })),
-      borderColor:     COLORS[spot.id],
-      backgroundColor: COLORS[spot.id] + '18',
-      borderWidth:     2,
-      pointRadius:     3,
-      pointHoverRadius:5,
-      tension:         0.35,
-      fill:            false,
-    }));
-
-  const chartWrap = document.querySelector('.chart-wrap');
-
-  if (datasets.length === 0) {
-    chartWrap.innerHTML = `<div class="no-history">No reliable counts yet in this window</div>`;
-    return;
-  }
-
-  if (!chartWrap.querySelector('canvas')) {
-    chartWrap.innerHTML = `<canvas id="historyChart"></canvas>`;
-  }
-
-  if (chart) {
-    chart.data.datasets = datasets;
-    chart.update();
-    return;
-  }
-
-  chart = new Chart(
-    document.getElementById('historyChart').getContext('2d'),
-    {
-      type: 'line',
-      data: { datasets },
-      options: {
-        responsive:          true,
-        maintainAspectRatio: false,
-        interaction:         { mode: 'nearest', intersect: false },
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              color:          '#64748b',
-              font:           { family: 'Inter', size: 11 },
-              boxWidth:       8,
-              boxHeight:      8,
-              usePointStyle:  true,
-              pointStyle:     'circle',
-              padding:        16,
-            },
-          },
-          tooltip: {
-            backgroundColor: '#0d1625',
-            borderColor:     'rgba(255,255,255,0.08)',
-            borderWidth:     1,
-            titleColor:      '#94a3b8',
-            bodyColor:       '#e2e8f0',
-            titleFont:       { family: 'Inter', size: 11 },
-            bodyFont:        { family: 'Inter', size: 12 },
-            callbacks: {
-              title: items => new Date(items[0].parsed.x)
-                .toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'America/Los_Angeles' }),
-              label: item  => ` ${item.dataset.label}: ${item.parsed.y} surfers`,
-            },
-          },
-        },
-        scales: {
-          x: {
-            type:  'time',
-            time:  { unit: hours <= 24 ? 'hour' : 'day' },
-            grid:  { color: 'rgba(255,255,255,0.04)' },
-            ticks: { color: '#475569', font: { family: 'Inter', size: 10 } },
-          },
-          y: {
-            beginAtZero: true,
-            grid:        { color: 'rgba(255,255,255,0.04)' },
-            ticks:       { color: '#475569', font: { family: 'Inter', size: 10 }, stepSize: 5 },
-            title:       { display: true, text: 'Surfers', color: '#475569', font: { family: 'Inter', size: 10 } },
-          },
-        },
-      },
-    }
-  );
-}
-
-// ── Range tab switcher ─────────────────────────────────────────────────────
-document.querySelectorAll('.range-tab').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.range-tab').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    activeHrs = parseInt(btn.dataset.hours);
-    fetchAndRenderHistory(activeHrs);
-  });
+// ── Heatmap range tab switcher ─────────────────────────────────────────────
+document.getElementById('heatmapTabs').addEventListener('click', e => {
+  const btn = e.target.closest('.range-tab');
+  if (!btn) return;
+  document.querySelectorAll('#heatmapTabs .range-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  activeDays = parseInt(btn.dataset.days);
+  fetchAndRenderHeatmap(activeDays);
 });
 
-// ── Flip card event delegation ─────────────────────────────────────────────
+// ── Flip card + Popular Times event delegation ─────────────────────────────
 function setupFlipHandler() {
-  document.getElementById('spotsGrid').addEventListener('click', async e => {
+  const grid = document.getElementById('spotsGrid');
+
+  // Card flip
+  grid.addEventListener('click', async e => {
+    // Day-tab click — switch Popular Times day
+    const dayTab = e.target.closest('.pt-day-tab');
+    if (dayTab) {
+      e.stopPropagation();
+      const section    = dayTab.closest('.pt-section');
+      const back       = dayTab.closest('.card-back');
+      const newDay     = parseInt(dayTab.dataset.day);
+      const currentHour = new Date().getHours();
+      const today      = new Date().getDay();
+      const isToday    = newDay === today;
+      const hourlyByDay = JSON.parse(back.dataset.ptByDay || '{}');
+      const dayAvgs    = hourlyByDay[newDay] || [];
+
+      // Update active tab
+      section.querySelectorAll('.pt-day-tab').forEach(t => t.classList.toggle('active', t === dayTab));
+
+      // Replace chart
+      const oldChart = section.querySelector('.pt-chart');
+      const tmp = document.createElement('div');
+      tmp.innerHTML = renderPTChart(dayAvgs, newDay, currentHour, isToday);
+      oldChart.replaceWith(tmp.firstElementChild);
+
+      // Update crowd label
+      const focusHour  = isToday ? Math.max(5, Math.min(19, currentHour)) : 12;
+      const focusEntry = dayAvgs.find(x => x.hour === focusHour);
+      const label      = popularTimesLabel(focusEntry?.avg ?? null, dayAvgs);
+      section.querySelector('.pt-header').textContent =
+        label ? `${formatHour12(focusHour)}: ${label}` : '';
+      return;
+    }
+
+    // Bar-col click (mobile tap)
+    const barCol = e.target.closest('.pt-bar-col');
+    if (barCol) {
+      e.stopPropagation();
+      const section = barCol.closest('.pt-section');
+      if (!section) return;
+      section.querySelectorAll('.pt-bar-col.tapped').forEach(c => { if (c !== barCol) c.classList.remove('tapped'); });
+      barCol.classList.toggle('tapped');
+      _updatePTLabel(section, barCol);
+      return;
+    }
+
+    // Default: flip card
     const card = e.target.closest('.spot-card[data-spot-id]');
     if (!card) return;
     card.classList.toggle('flipped');
-    if (card.classList.contains('flipped')) {
-      await ensureBackLoaded(card);
-    }
+    if (card.classList.contains('flipped')) await ensureBackLoaded(card);
   });
+
+  // Bar hover → update crowd label (desktop)
+  grid.addEventListener('mouseover', e => {
+    const barCol = e.target.closest('.pt-bar-col');
+    if (!barCol || barCol.classList.contains('no-data')) return;
+    const section = barCol.closest('.pt-section');
+    if (!section) return;
+    _updatePTLabel(section, barCol);
+  });
+}
+
+function _updatePTLabel(section, barCol) {
+  const back    = barCol.closest('.card-back');
+  if (!back) return;
+  const activeTab  = section.querySelector('.pt-day-tab.active');
+  const day        = parseInt(activeTab?.dataset.day ?? new Date().getDay());
+  const hourlyByDay = JSON.parse(back.dataset.ptByDay || '{}');
+  const dayAvgs    = hourlyByDay[day] || [];
+  const hour       = parseInt(barCol.dataset.hour);
+  const rawAvg     = barCol.dataset.avg;
+  const avg        = rawAvg !== '' ? parseFloat(rawAvg) : null;
+  const label      = popularTimesLabel(avg, dayAvgs);
+  section.querySelector('.pt-header').textContent =
+    label ? `${formatHour12(hour)}: ${label}` : '';
 }
 
 // ── Boot ───────────────────────────────────────────────────────────────────
@@ -968,7 +1318,7 @@ async function init() {
   await loadSpots();
   renderSkeletons();
   setupFlipHandler();
-  await Promise.all([fetchLatest(), fetchAndRenderHistory(activeHrs)]);
+  await Promise.all([fetchLatest(), fetchAndRenderHeatmap(activeDays)]);
 }
 
 init();
