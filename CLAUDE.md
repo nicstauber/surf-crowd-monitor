@@ -22,16 +22,18 @@ Working spike script: `surf_spike_v6.py`
 - **Language:** Python
 
 ## Surf Spots
-| Key | Surfline slug |
-|-----|--------------|
-| `lower_trestles` | `wc-lowerslefts` |
-| `upper_trestles` | `wc-uppertrestles` |
-| `doheny_second_spot` | `wc-secondspotdoheny` |
-| `hb_pier_south` | `wc-huntingtonbeachsouthside` |
-| `hb_cliffs` | `wc-huntingtoncliffs` |
-| `newport_56th` | `wc-fiftysixnewport` |
-| `el_porto` | `wc-elporto43rd` |
-| `malibu` | `wc-malibusurfrider` |
+| Key | Display Name | Surfline slug |
+|-----|-------------|--------------|
+| `lower_trestles` | Lower Trestles | `wc-lowerslefts` |
+| `upper_trestles` | Upper Trestles | `wc-upperstrestles` |
+| `doheny_second_spot` | Doheny - The Hammer | `wc-secondspotdoheny` |
+| `hb_pier_south` | HB Pier South | `wc-huntingtonbeachsouthside` |
+| `hb_cliffs` | North HB - Goldenwest | `wc-goldenwest` |
+| `north_hb_20th` | North HB - 20th Street | `wc-twentiethst` |
+| `bolsa_chica_tower17` | Bolsa Chica - Tower 17 | `wc-tower17southbolsa` |
+| `newport_56th` | Newport 56th | `wc-fiftysixnewport` |
+| `el_porto` | El Porto - 42nd Street | `wc-elporto42nd` |
+| `malibu` | Malibu - Surfrider Beach | `wc-malibusurfrider` |
 
 All HLS streams follow: `https://hls.cdn-surfline.com/oregon/[slug]/playlist.m3u8`
 
