@@ -6,7 +6,6 @@ usability (glare, brightness, contrast) before sending to Claude.
 """
 
 import requests
-import subprocess
 import time
 import logging
 import numpy as np
@@ -57,13 +56,12 @@ def _fetch_hls_frame(spot: dict, frame_index: int, output_dir: Path) -> Path:
     frame_path = output_dir / f"{spot['id']}_frame_{frame_index}.jpg"
     seg_path.write_bytes(r2.content)
 
-    result = subprocess.run(
-        ["ffmpeg", "-y", "-i", str(seg_path),
-         "-frames:v", "1", "-q:v", "2", str(frame_path)],
-        capture_output=True,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"ffmpeg failed for {spot['id']} frame {frame_index}")
+    cap = cv2.VideoCapture(str(seg_path))
+    ret, frame = cap.read()
+    cap.release()
+    if not ret or frame is None:
+        raise RuntimeError(f"OpenCV failed to read frame for {spot['id']} frame {frame_index}")
+    cv2.imwrite(str(frame_path), frame)
 
     return frame_path
 
