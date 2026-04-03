@@ -1,8 +1,8 @@
 """
-detect.py — Claude vision surfer counting.
+detect.py — Claude vision surfer counting + conditions assessment.
 
-Sends a full-frame image to Claude and returns a structured count
-with confidence level and descriptive notes.
+Sends a full-frame image to Claude and returns a structured surfer count
+alongside a water conditions assessment in a single API call.
 """
 
 import base64
@@ -15,37 +15,74 @@ from PIL import Image
 
 log = logging.getLogger(__name__)
 
-_PROMPT = """You are a precise surf cam analyst. Your job is to count every single person in the water — not estimate, but count each one individually.
+_PROMPT = """You are a precise surf cam analyst. Analyze this image and return two things: an exact surfer count and a conditions assessment.
 
-COUNTING METHOD — do this mentally before responding:
-1. Scan the water from LEFT to RIGHT in horizontal strips
-2. In each strip, mark every dark figure, dot, or silhouette on or in the water
-3. Count each one — do not round or approximate
-4. Move to the next strip and repeat until you've covered the full water area
+PART 1 — SURFER COUNT
+Count every person in the water using this method:
+1. Scan LEFT to RIGHT in horizontal strips across the full water area
+2. Mark every dark figure, dot, or silhouette on or in the water
+3. Count each one individually — do not round or approximate
 
-COUNT THESE — anyone in the ocean, surf zone, or shoreline water:
-- Surfers sitting upright on boards in the lineup (usually dark dots/silhouettes)
-- Surfers lying prone paddling (elongated shapes on the water surface)
+COUNT THESE:
+- Surfers sitting on boards in the lineup
+- Surfers lying prone paddling
 - Surfers actively riding a wave
 - Anyone standing, wading, or swimming in the water
 
 DO NOT COUNT:
-- People on the dry beach or sand
-- People on piers, jetties, rocks, or structures
+- People on dry beach, sand, piers, jetties, rocks, or structures
 - Umbrellas, towels, tents, or beach gear
 - Birds, animals, or buoys
 - Whitewash or foam that resembles a person
 
-IMPORTANT: This is a precise count, not an estimate. If you see 23 people, say 23. If you see 31, say 31. Do not round to the nearest 5 or 10. Count every visible person individually.
+PART 2 — CONDITIONS ASSESSMENT
+Assess the following fields using only the allowed values listed.
+
+surface: texture of the open water surface
+  glassy | light_chop | choppy | very_choppy
+
+swell_size: estimated wave face height
+  flat | ankle | knee | waist | chest | head | over_head
+
+wave_quality: shape and form of breaking waves
+  clean | crumbly | mushy | closed_out
+
+wind_effect: infer from surface texture and spray off wave lips
+  offshore | onshore | cross_shore | calm
+
+crowd_distribution: how surfers are positioned in the lineup
+  empty | spread | clustered | multiple_peaks
+
+water_clarity: color and turbidity of the water
+  clear | murky | brown
+
+lighting: current light quality in the scene
+  golden_hour | overcast_flat | harsh_midday | backlit
+
+visibility: atmospheric clarity toward the horizon
+  clear | hazy | foggy
+
+IMPORTANT: Use only the exact values listed for each field. Do not invent new values.
 
 Respond ONLY with JSON, no other text:
 {
-  "count": <exact integer — every person you counted>,
+  "surfer_count": <exact integer>,
   "confidence": "<low|medium|high>",
-  "notes": "<describe where the surfers are, e.g. 'tight cluster of 8 in lineup left, 6 spread across middle, 4 far right near rocks'>"
+  "count_notes": "<where surfers are located, e.g. 'cluster of 6 in left lineup, 3 scattered middle'>",
+  "conditions": {
+    "surface": "<value>",
+    "swell_size": "<value>",
+    "wave_quality": "<value>",
+    "wind_effect": "<value>",
+    "crowd_distribution": "<value>",
+    "water_clarity": "<value>",
+    "lighting": "<value>",
+    "visibility": "<value>"
+  },
+  "conditions_notes": "<one sentence describing the overall session — e.g. 'Small clean chest-high sets with offshore grooming, glassy surface, light crowd spread across the peak'>"
 }
 
-If truly unable to count due to darkness or glare, set count to -1."""
+If truly unable to count due to darkness or glare, set surfer_count to -1."""
 
 
 def _encode_image(img_pil: Image.Image, max_width: int) -> str:
@@ -59,14 +96,15 @@ def _encode_image(img_pil: Image.Image, max_width: int) -> str:
     return base64.standard_b64encode(buf.getvalue()).decode("utf-8")
 
 
-def count_surfers(
+def analyze_frame(
     img_pil: Image.Image,
     frame_label: str,
     client: anthropic.Anthropic,
     settings: dict,
-) -> tuple[int, str, str]:
+) -> dict:
     """
-    Send full frame to Claude and return (count, confidence, notes).
+    Send full frame to Claude for surfer count + conditions assessment.
+    Returns a dict with keys: count, confidence, notes, conditions, conditions_notes.
     count is -1 if Claude cannot determine a reliable count.
     """
     b64   = _encode_image(img_pil, settings["image_width"])
@@ -75,7 +113,7 @@ def count_surfers(
     try:
         response = client.messages.create(
             model=model,
-            max_tokens=400,
+            max_tokens=600,
             messages=[{
                 "role": "user",
                 "content": [
@@ -96,18 +134,29 @@ def count_surfers(
         clean  = raw.replace("```json", "").replace("```", "").strip()
         parsed = json.loads(clean)
 
-        count = int(parsed.get("count", -1))
-        conf  = parsed.get("confidence", "unknown")
-        notes = parsed.get("notes", "")
+        count      = int(parsed.get("surfer_count", -1))
+        conf       = parsed.get("confidence", "unknown")
+        notes      = parsed.get("count_notes", "")
+        conditions = parsed.get("conditions", {})
+        cond_notes = parsed.get("conditions_notes", "")
 
         log.info(f"[{frame_label}] Claude → count={count}  conf={conf}")
         log.info(f"[{frame_label}] {notes}")
+        log.info(f"[{frame_label}] {cond_notes}")
 
-        return count, conf, notes
+        return {
+            "count":            count,
+            "confidence":       conf,
+            "notes":            notes,
+            "conditions":       conditions,
+            "conditions_notes": cond_notes,
+        }
 
     except json.JSONDecodeError as e:
         log.warning(f"[{frame_label}] JSON parse error: {e}")
-        return -1, "error", f"parse error: {e}"
+        return {"count": -1, "confidence": "error", "notes": f"parse error: {e}",
+                "conditions": {}, "conditions_notes": ""}
     except Exception as e:
         log.warning(f"[{frame_label}] API error: {e}")
-        return -1, "error", str(e)
+        return {"count": -1, "confidence": "error", "notes": str(e),
+                "conditions": {}, "conditions_notes": ""}

@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from capture    import fetch_burst, score_frames
 from conditions import fetch_conditions
 from db         import get_client, write_observation, upload_frame
-from detect     import count_surfers
+from detect     import analyze_frame
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -151,10 +151,10 @@ def run_spot_sample(
     qualifying = [fr for fr in scored if fr["quality"]["contributes"]]
     if qualifying:
         best_qual = max(qualifying, key=lambda x: x["quality"]["overall_score"])
-        count, conf, notes = count_surfers(
+        result = analyze_frame(
             best_qual["image"], f"{spot_id}/F{best_qual['index']}", claude_client, settings
         )
-        best_qual.update({"count": count, "confidence": conf, "notes": notes})
+        best_qual.update(result)
         log.info(
             f"[{spot_id}] Sent 1 frame to Claude "
             f"(best quality: F{best_qual['index']} score={best_qual['quality']['overall_score']:.2f})"
@@ -163,22 +163,26 @@ def run_spot_sample(
     # 4. Determine final count
     contributing = [
         fr for fr in scored
-        if fr["count"] >= 0 and fr["quality"]["contributes"]
+        if fr.get("count", -1) >= 0 and fr["quality"]["contributes"]
     ]
 
     if contributing:
-        best           = contributing[0]  # only one frame was sent to Claude
-        surfer_count   = best["count"]
-        count_reliable = True
-        claude_notes   = best["notes"]
+        best             = contributing[0]  # only one frame was sent to Claude
+        surfer_count     = best["count"]
+        count_reliable   = True
+        claude_notes     = best["notes"]
+        vision_conditions      = best.get("conditions", {})
+        vision_conditions_notes = best.get("conditions_notes", "")
         log.info(
             f"[{spot_id}] Final count: {surfer_count}  "
             f"(best-frame, 1 API call)"
         )
     else:
-        surfer_count   = None   # null = unknown; 0 would mean "counted zero"
-        count_reliable = False
-        claude_notes   = "No qualifying frames"
+        surfer_count     = None   # null = unknown; 0 would mean "counted zero"
+        count_reliable   = False
+        claude_notes     = "No qualifying frames"
+        vision_conditions      = {}
+        vision_conditions_notes = ""
         log.warning(f"[{spot_id}] No qualifying frames — count unreliable")
 
     # 5. Quality averages
@@ -199,7 +203,7 @@ def run_spot_sample(
         "spot_name":        spot["name"],
         "surfer_count":     surfer_count,
         "count_reliable":   count_reliable,
-        "count_method":     "claude_vision_full_frame_best_frame",
+        "count_method":     "claude_vision_full_frame_best_frame_v7",
         "session_quality":  round(mean(all_scores), 3),
         "frame_quality_avg": round(mean(all_scores), 3),
         "lap_var_avg":      round(mean(all_laps), 1),
@@ -214,6 +218,15 @@ def run_spot_sample(
         "tide_height":      conditions["tide_height"],
         "spot_rating":      conditions["spot_rating"],
         "conditions_raw":   conditions["conditions_raw"],
+        "vision_surface":            vision_conditions.get("surface"),
+        "vision_swell_size":         vision_conditions.get("swell_size"),
+        "vision_wave_quality":       vision_conditions.get("wave_quality"),
+        "vision_wind_effect":        vision_conditions.get("wind_effect"),
+        "vision_crowd_distribution": vision_conditions.get("crowd_distribution"),
+        "vision_water_clarity":      vision_conditions.get("water_clarity"),
+        "vision_lighting":           vision_conditions.get("lighting"),
+        "vision_visibility":         vision_conditions.get("visibility"),
+        "vision_conditions_notes":   vision_conditions_notes,
         "frames_raw": [
             {
                 "index":      fr["index"],
