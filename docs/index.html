@@ -326,6 +326,23 @@
       margin-top: 2px;
     }
 
+    /* ── Vision conditions ───────────────────────────────────────────────── */
+    .vision-conditions {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding-top: 10px;
+      margin-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .vision-notes {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-style: italic;
+      padding-top: 8px;
+      line-height: 1.4;
+    }
+
     /* ── Skeleton ────────────────────────────────────────────────────────── */
     .skeleton {
       background: linear-gradient(90deg,
@@ -692,6 +709,14 @@ function renderSkeletons() {
   `).join('');
 }
 
+// ── Format vision enum values (snake_case → Title Case) ───────────────────
+function fmtVision(val) {
+  if (!val) return '—';
+  const overrides = { over_head: 'Overhead+' };
+  if (overrides[val]) return overrides[val];
+  return val.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 // ── Render a single card ───────────────────────────────────────────────────
 function cardHTML(spot, obs, cond = {}) {
   const count    = obs?.surfer_count;
@@ -763,6 +788,34 @@ function cardHTML(spot, obs, cond = {}) {
                 <div class="cond-value">${fmt(cond?.tide_height ?? obs?.tide_height, 'ft', 1)}</div>
               </div>
             </div>
+            ${(() => {
+              const surf  = obs?.vision_surface;
+              const qual  = obs?.vision_wave_quality;
+              const clar  = obs?.vision_water_clarity;
+              const vis   = obs?.vision_visibility;
+              const notes = obs?.vision_conditions_notes;
+              if (!surf && !qual && !clar && !vis && !notes) return '';
+              return `
+            <div class="vision-conditions">
+              <div>
+                <div class="cond-label">Surface</div>
+                <div class="cond-value">${fmtVision(surf)}</div>
+              </div>
+              <div>
+                <div class="cond-label">Quality</div>
+                <div class="cond-value">${fmtVision(qual)}</div>
+              </div>
+              <div>
+                <div class="cond-label">Clarity</div>
+                <div class="cond-value">${fmtVision(clar)}</div>
+              </div>
+              <div>
+                <div class="cond-label">Visibility</div>
+                <div class="cond-value">${fmtVision(vis)}</div>
+              </div>
+            </div>
+            ${notes ? `<div class="vision-notes">${notes}</div>` : ''}`;
+            })()}
           </div>
         </div>
         <div class="card-back">
