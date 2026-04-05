@@ -10,7 +10,7 @@ REMOTE_DIR="/home/dh_gkku5s/surf.nico.studio"
 
 echo "==> Deploying dashboard to ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
 
-rsync -avz --progress \
+rsync -avzL --progress \
   docs/index.html \
   config/spots.json \
   "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/"
