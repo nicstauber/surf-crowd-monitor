@@ -1149,34 +1149,16 @@ function localDateStr(date) {
 }
 
 async function fetchHeatmapData(days) {
-  const since = new Date(Date.now() - days * 86_400_000).toISOString();
-  const { data } = await db
-    .from('observations')
-    .select('spot_id, captured_at, surfer_count')
-    .eq('count_reliable', true)
-    .not('surfer_count', 'is', null)
-    .gte('captured_at', since)
-    .order('captured_at', { ascending: true });
+  // Server-side aggregation via RPC — avoids the 1000-row PostgREST limit that
+  // caused recent days to be silently dropped when querying raw observation rows.
+  // Returns at most (spots × days) rows, e.g. 10 × 30 = 300.
+  const { data } = await db.rpc('heatmap_daily_avg', { p_days: days });
 
-  // Aggregate client-side: Map<spotId, Map<dateStr, {sum, count}>>
-  const agg = new Map();
-  for (const row of (data || [])) {
-    const dateStr = localDateStr(new Date(row.captured_at));
-    if (!agg.has(row.spot_id)) agg.set(row.spot_id, new Map());
-    const spotMap = agg.get(row.spot_id);
-    if (!spotMap.has(dateStr)) spotMap.set(dateStr, { sum: 0, count: 0 });
-    const entry = spotMap.get(dateStr);
-    entry.sum   += row.surfer_count;
-    entry.count += 1;
-  }
-
+  // Build Map<spotId, Map<dateStr, avgCount>> — same shape renderHeatmap expects.
   const result = new Map();
-  for (const [spotId, spotMap] of agg) {
-    const avgMap = new Map();
-    for (const [dateStr, { sum, count }] of spotMap) {
-      avgMap.set(dateStr, Math.round(sum / count));
-    }
-    result.set(spotId, avgMap);
+  for (const row of (data || [])) {
+    if (!result.has(row.spot_id)) result.set(row.spot_id, new Map());
+    result.get(row.spot_id).set(row.date_str, row.avg_count);
   }
   return result;
 }
