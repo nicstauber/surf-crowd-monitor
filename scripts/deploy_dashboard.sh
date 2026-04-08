@@ -10,10 +10,13 @@ REMOTE_DIR="/home/dh_gkku5s/surf.nico.studio"
 
 echo "==> Deploying dashboard to ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
 
-rsync -avz --progress \
+rsync -avzL --progress \
   docs/index.html \
   config/spots.json \
   "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/"
+
+echo "==> Fixing permissions..."
+ssh "${REMOTE_USER}@${REMOTE_HOST}" "chmod 644 ${REMOTE_DIR}/index.html ${REMOTE_DIR}/spots.json"
 
 echo ""
 echo "==> Done. Visit https://surf.nico.studio to verify."
