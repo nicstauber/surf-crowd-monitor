@@ -2,10 +2,10 @@ name: Surf Sample
 
 on:
   schedule:
-    # Hourly, and only during UTC hours that can fall inside the sampling
-    # window. Pacific is UTC-7/-8, so sunrise-1h .. sunset+1h never reaches
-    # 05:00-10:00 UTC — those ticks are not scheduled at all.
-    - cron: '0 11-23,0-4 * * *'
+    # Every 15 min, but only during UTC hours that can fall inside the
+    # sampling window. Pacific is UTC-7/-8, so sunrise-1h .. sunset+1h never
+    # reaches 05:00-10:00 UTC — those ticks are not scheduled at all.
+    - cron: '0,15,30,45 11-23,0-4 * * *'
   workflow_dispatch:
     inputs:
       force:
