@@ -2,58 +2,52 @@ name: Surf Sample
 
 on:
   schedule:
-    - cron: '0,15,30,45 * * * *'   # every 15 minutes
-  workflow_dispatch:                  # manual trigger from GitHub UI
+    # Every 15 min, but only during UTC hours that can fall inside the
+    # sampling window. Pacific is UTC-7/-8, so sunrise-1h .. sunset+1h never
+    # reaches 05:00-10:00 UTC — those ticks are not scheduled at all.
+    - cron: '0,15,30,45 11-23,0-4 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Sample even if outside the active window
+        type: boolean
+        default: false
+
+# A delayed tick must never overlap an in-flight sample and double-write.
+concurrency:
+  group: surf-sample
+  cancel-in-progress: false
 
 jobs:
   sample:
     runs-on: ubuntu-latest
+    # Guard against a hung capture draining the monthly Actions quota.
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
 
+      # Runs before any dependency setup, so a tick outside the window costs
+      # seconds rather than minutes. src/scheduler.py still does the
+      # authoritative per-spot window check before capturing anything.
+      - name: Check active window
+        id: window
+        env:
+          FORCE_RUN: ${{ inputs.force }}
+        run: python3 .github/scripts/active_window.py >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-python@v5
+        if: steps.window.outputs.active == 'true'
         with:
           python-version: '3.11'
-
-      - name: Install ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+          cache: pip
 
       - name: Install Python dependencies
+        if: steps.window.outputs.active == 'true'
         run: pip install -r requirements.txt
 
-      - name: Check ffmpeg
-        run: ffmpeg -version | head -1 || echo "ffmpeg NOT found"
-
-      - name: Check secrets are set
-        run: |
-          echo "ANTHROPIC_API_KEY set: ${{ secrets.ANTHROPIC_API_KEY != '' }}"
-          echo "SUPABASE_URL set: ${{ secrets.SUPABASE_URL != '' }}"
-          echo "SUPABASE_SERVICE_KEY set: ${{ secrets.SUPABASE_SERVICE_KEY != '' }}"
-
-      - name: Check active window
-        run: |
-          python - <<'EOF'
-          from datetime import datetime, timezone
-          from zoneinfo import ZoneInfo
-          from astral import LocationInfo
-          from astral.sun import sun
-          from datetime import timedelta
-          tz = ZoneInfo("America/Los_Angeles")
-          now_utc = datetime.now(timezone.utc)
-          now_local = now_utc.astimezone(tz)
-          loc = LocationInfo("Lower Trestles", "US", "America/Los_Angeles", 33.3814, -117.5897)
-          s = sun(loc.observer, date=now_local.date(), tzinfo=tz)
-          start = s["sunrise"] - timedelta(hours=1)
-          end   = s["sunset"]  + timedelta(hours=1)
-          active = start <= now_local <= end
-          print(f"UTC now:    {now_utc.strftime('%H:%M:%S')}")
-          print(f"Local now:  {now_local.strftime('%H:%M:%S %Z')}")
-          print(f"Window:     {start.strftime('%H:%M')} – {end.strftime('%H:%M %Z')}")
-          print(f"Active:     {active}")
-          EOF
-
       - name: Run sample cycle
+        if: steps.window.outputs.active == 'true'
         run: python src/scheduler.py --once
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
