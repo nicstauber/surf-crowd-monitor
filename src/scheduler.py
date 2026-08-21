@@ -128,7 +128,8 @@ def run_spot_sample(
       4. Fetch Surfline conditions
       5. Write to Supabase (unless skip_db=True)
 
-    Returns the observation record dict, or None if the burst yielded no frames.
+    Returns an outcome string: "ok", "no_frames" (transient capture problem),
+    or "write_failed" (the sample was lost).
     """
     spot_id    = spot["id"]
     captured_at = datetime.now(timezone.utc)
@@ -139,7 +140,7 @@ def run_spot_sample(
     frame_paths = fetch_burst(spot, settings, output_dir)
     if not frame_paths:
         log.warning(f"[{spot_id}] No frames fetched — skipping")
-        return None
+        return "no_frames"
 
     # 2. Score quality
     scored = score_frames(frame_paths, settings)
@@ -253,11 +254,15 @@ def run_spot_sample(
 
     # 9. Write to DB
     if not skip_db:
-        write_observation(record)
+        if write_observation(record) is None:
+            # Do not let a failed write pass for success: an unnoticed DB
+            # outage silently dropped eight days of samples in Aug 2026.
+            log.error(f"[{spot_id}] observation was NOT persisted")
+            return "write_failed"
     else:
         log.info(f"[{spot_id}] skip_db=True — not writing to Supabase")
 
-    return record
+    return "ok"
 
 
 def run_sample_cycle(
@@ -266,16 +271,30 @@ def run_sample_cycle(
     claude_client: anthropic.Anthropic,
     output_dir:    Path,
     skip_db:       bool = False,
-) -> None:
-    """Run one full sample cycle across all enabled spots sequentially."""
+) -> dict[str, int]:
+    """
+    Run one full sample cycle across all enabled spots sequentially.
+
+    Returns a tally of outcomes so the caller can decide whether the cycle
+    was healthy enough to report success.
+    """
     enabled = [s for s in spots if s.get("enabled")]
     log.info(f"Starting sample cycle — {len(enabled)} enabled spot(s)")
 
+    tally = {"ok": 0, "no_frames": 0, "write_failed": 0, "error": 0}
     for spot in enabled:
         try:
-            run_spot_sample(spot, settings, claude_client, output_dir, skip_db=skip_db)
+            outcome = run_spot_sample(spot, settings, claude_client, output_dir, skip_db=skip_db)
+            tally[outcome] = tally.get(outcome, 0) + 1
         except Exception as e:
             log.error(f"[{spot['id']}] Unhandled error: {e}", exc_info=True)
+            tally["error"] += 1
+
+    log.info(
+        f"Cycle tally — ok={tally['ok']} no_frames={tally['no_frames']} "
+        f"write_failed={tally['write_failed']} error={tally['error']}"
+    )
+    return tally
 
 
 # ─── Main loop ────────────────────────────────────────────────────────────────
@@ -327,8 +346,24 @@ def main() -> None:
             active_spots = [s for s in enabled if is_active(s, now)]
         if not active_spots:
             log.info("Outside active window for all spots — nothing to do. Use --force to override.")
-        else:
-            run_sample_cycle(active_spots, settings, claude_client, output_dir, skip_db=not supabase_ready)
+            log.info("Done.")
+            return
+
+        tally = run_sample_cycle(
+            active_spots, settings, claude_client, output_dir, skip_db=not supabase_ready
+        )
+
+        # Exit non-zero so a scheduled run turns red instead of reporting a
+        # green build while dropping data. A single offline cam is tolerated;
+        # a failed write, or every spot failing, is not.
+        failed = tally["write_failed"] + tally["error"]
+        if failed:
+            log.error(f"{failed} spot(s) failed to persist — failing the run")
+            sys.exit(1)
+        if tally["ok"] == 0:
+            log.error("No spot produced a usable sample — failing the run")
+            sys.exit(1)
+
         log.info("Done.")
         return
 
@@ -339,6 +374,8 @@ def main() -> None:
 
         if active_spots:
             log.info(f"Active spots: {[s['id'] for s in active_spots]}")
+            # The long-running loop logs the tally and keeps going; it must not
+            # exit on a transient failure the way the one-shot CI run does.
             run_sample_cycle(
                 active_spots, settings, claude_client, output_dir, skip_db=not supabase_ready
             )
