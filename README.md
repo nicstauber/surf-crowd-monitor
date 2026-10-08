@@ -76,6 +76,9 @@ python src/scheduler.py --once
 
 Runs one full sample across all enabled spots immediately and exits. If Supabase env vars are not set, the DB write is skipped and results are logged only.
 
+### Scheduled runs (GitHub Actions)
+In production, `.github/workflows/sample.yml` runs `--once` every 15 minutes, started by an outside timer because GitHub's own `schedule:` drops most runs. Setup for the timer (cron-job.org) and the down-alert (healthchecks.io) is in [SCHEDULING.md](SCHEDULING.md).
+
 ## Configuration
 
 ### Adding a new spot (`config/spots.json`)
