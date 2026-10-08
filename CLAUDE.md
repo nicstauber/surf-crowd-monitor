@@ -24,10 +24,10 @@ Working spike script: `surf_spike_v6.py`
 ## Surf Spots
 | Key | Display Name | Surfline slug |
 |-----|-------------|--------------|
-| `lower_trestles` | Lower Trestles | `wc-lowerslefts` |
+| `lower_trestles` | Lower Trestles | `wc-lowers` |
 | `upper_trestles` | Upper Trestles | `wc-upperstrestles` |
 | `doheny_second_spot` | Doheny - The Hammer | `wc-secondspotdoheny` |
-| `hb_pier_south` | HB Pier South | `wc-huntingtonbeachsouthside` |
+| `hb_pier_south` | HB Pier South | `wc-hbpierssov` |
 | `hb_cliffs` | North HB - Goldenwest | `wc-goldenwest` |
 | `north_hb_20th` | North HB - 20th Street | `wc-twentiethst` |
 | `bolsa_chica_tower17` | Bolsa Chica - Tower 17 | `wc-tower17southbolsa` |
