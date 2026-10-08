@@ -61,6 +61,10 @@ def fetch_conditions(spot: dict, captured_at: datetime) -> dict:
         f"Tide: {data.get('tide_height')}ft  "
         f"Rating: {data.get('spot_rating')}"
     )
+    if data.get("report"):
+        rep = data["report"]
+        log.info(f"[{spot_id}] Report: {rep.get('subregion_name')} @ {rep.get('published_at')} "
+                 f"by {rep.get('forecaster')} — {str(rep.get('headline'))[:80]}")
 
     return {
         "wave_height_min":  data.get("wave_height_min"),
@@ -72,7 +76,10 @@ def fetch_conditions(spot: dict, captured_at: datetime) -> dict:
         "wind_direction":   data.get("wind_direction"),
         "tide_height":      data.get("tide_height"),
         "spot_rating":      data.get("spot_rating"),
-        "conditions_raw":   data,   # store full response for debugging
+        # Regional written forecast, stored once per subregion in its own table
+        # rather than copied onto every observation's conditions_raw.
+        "report":           data.get("report"),
+        "conditions_raw":   {k: v for k, v in data.items() if k != "report"},
     }
 
 
@@ -87,5 +94,6 @@ def _empty() -> dict:
         "wind_direction":   None,
         "tide_height":      None,
         "spot_rating":      None,
+        "report":           None,
         "conditions_raw":   {},
     }

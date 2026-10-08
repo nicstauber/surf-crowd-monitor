@@ -32,7 +32,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from capture    import fetch_burst, score_frames
 from conditions import fetch_conditions
-from db         import get_client, write_observation, upload_frame, recent_observations
+from db         import (get_client, write_observation, upload_frame, recent_observations,
+                        save_regional_report)
 from detect     import analyze_frame
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -309,6 +310,8 @@ def run_spot_sample(
             # outage silently dropped eight days of samples in Aug 2026.
             log.error(f"[{spot_id}] observation was NOT persisted")
             return "write_failed"
+        if conditions["report"]:
+            save_regional_report(conditions["report"])
     else:
         log.info(f"[{spot_id}] skip_db=True — not writing to Supabase")
 
