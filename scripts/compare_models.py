@@ -31,11 +31,10 @@ from statistics import mean
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
+from dotenv import load_dotenv
+
+# A key in .env should win over a stale one exported in the shell profile.
+load_dotenv(override=True)
 
 import anthropic
 from PIL import Image
@@ -132,7 +131,16 @@ def main():
     if not frames:
         sys.exit("No frames to compare.")
 
-    client = anthropic.Anthropic()
+    # Check the key and model access once, up front, instead of letting every
+    # call fail with the same error.
+    try:
+        client = anthropic.Anthropic()
+        for model in sorted({m for _, m, *_ in ARMS}):
+            client.models.retrieve(model)
+    except (anthropic.AuthenticationError, anthropic.PermissionDeniedError,
+            anthropic.NotFoundError, TypeError) as e:
+        sys.exit(f"❌ Can't use the Claude API: {e}\n"
+                 "   Check ANTHROPIC_API_KEY in .env.")
     rows   = []
     print(f"\n🤖 Sending {len(frames)} frames × {len(ARMS)} models...\n")
 
