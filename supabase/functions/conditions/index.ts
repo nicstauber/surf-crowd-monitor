@@ -12,6 +12,7 @@
  */
 
 const SURFLINE_BASE = "https://services.surfline.com/kbyg/spots/forecasts";
+const SURFLINE_REPORTS = "https://services.surfline.com/kbyg/spots/reports";
 
 // Browser-like headers — keeps Cloudflare happy on server-side requests
 const SURFLINE_HEADERS = {
@@ -57,28 +58,6 @@ Deno.serve(async (req) => {
 
   const { searchParams } = new URL(req.url);
 
-  // Diagnostics: ?raw=<path> returns Surfline's untouched response (status +
-  // body) for read-only public API paths, with any other params forwarded.
-  // Lets us see schema changes from outside Cloudflare's CI-IP block.
-  const raw = searchParams.get("raw");
-  if (raw) {
-    if (!/^(kbyg\/[\w/]+|taxonomy|feed\/[\w/]+)$/.test(raw)) {
-      return new Response(JSON.stringify({ error: "raw path not allowed" }), {
-        status: 400,
-        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
-    }
-    const fwd = new URLSearchParams(searchParams);
-    fwd.delete("raw");
-    const r = await fetch(`https://services.surfline.com/${raw}?${fwd}`, {
-      headers: SURFLINE_HEADERS,
-    });
-    const body = (await r.text()).slice(0, 200_000);
-    return new Response(JSON.stringify({ status: r.status, body }), {
-      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-    });
-  }
-
   const spotId = searchParams.get("spotId");
 
   if (!spotId) {
@@ -91,30 +70,63 @@ Deno.serve(async (req) => {
   const params = `spotId=${spotId}&days=1&intervalHours=1`;
   const ts = Date.now() / 1000;
 
-  const [waveRes, windRes, tidesRes, ratingRes] = await Promise.all([
-    getJson(`${SURFLINE_BASE}/wave?${params}`),
+  // /wave was retired (404) around 2026-09-01; surf height and swells are
+  // now separate endpoints.
+  const [surfRes, swellsRes, windRes, tidesRes, ratingRes, reportRes] = await Promise.all([
+    getJson(`${SURFLINE_BASE}/surf?${params}`),
+    getJson(`${SURFLINE_BASE}/swells?${params}`),
     getJson(`${SURFLINE_BASE}/wind?${params}`),
     getJson(`${SURFLINE_BASE}/tides?${params}`),
     getJson(`${SURFLINE_BASE}/rating?${params}`),
+    getJson(`${SURFLINE_REPORTS}?spotId=${spotId}`),
   ]);
 
   // deno-lint-ignore no-explicit-any
   const data = (res: any, key: string) => res?.data?.[key] ?? [];
 
-  const wave   = closest(data(waveRes,   "wave"),   ts) as any;
+  const surf   = closest(data(surfRes,   "surf"),   ts) as any;
+  const swells = closest(data(swellsRes, "swells"), ts) as any;
   const wind   = closest(data(windRes,   "wind"),   ts) as any;
   const tide   = closest(data(tidesRes,  "tides"),  ts) as any;
   const rating = closest(data(ratingRes, "rating"), ts) as any;
 
+  // Swell slots are no longer ordered by importance (slot 0 is often an empty
+  // placeholder), so take the one with the highest impact.
+  // deno-lint-ignore no-explicit-any
+  const swell = (swells?.swells ?? []).filter((s: any) => s.height > 0)
+    // deno-lint-ignore no-explicit-any
+    .reduce((a: any, b: any) => (a && a.impact >= b.impact ? a : b), null);
+
+  // Regional written forecast (e.g. "North Orange County Forecast"). Shared by
+  // every spot in the subregion; updated by Surfline's forecasters ~AM and PM.
+  // deno-lint-ignore no-explicit-any
+  const rep = (reportRes as any)?.report;
+  // deno-lint-ignore no-explicit-any
+  const subregionUrl: string = (reportRes as any)?.associated?.subregionUrl ?? "";
+  const [subregionSlug, subregionId] = subregionUrl.split("/").slice(-2);
+  const report = rep?.timestamp && subregionId
+    ? {
+      subregion_id:   subregionId,
+      subregion_name: subregionSlug,
+      published_at:   new Date(rep.timestamp * 1000).toISOString(),
+      forecaster:     rep.forecaster?.name ?? null,
+      headline:       rep.headline ?? null,
+      body_html:      rep.body ?? null,
+      // deno-lint-ignore no-explicit-any
+      note_html:      (reportRes as any)?.notes?.subregion ?? null,
+      day_to_watch:   rep.dayToWatch ?? null,
+    }
+    : null;
+
   const result = {
     // Surf / wave
-    wave_height_min:     wave?.surf?.min              ?? null,
-    wave_height_max:     wave?.surf?.max              ?? null,
-    surf_human_relation: wave?.surf?.humanRelation    ?? null,
-    // Swell (dominant = index 0, sorted by impact desc)
-    swell_height:        wave?.swells?.[0]?.height    ?? null,
-    swell_period:        wave?.swells?.[0]?.period    ?? null,
-    swell_direction:     wave?.swells?.[0]?.direction ?? null,
+    wave_height_min:     surf?.surf?.min              ?? null,
+    wave_height_max:     surf?.surf?.max              ?? null,
+    surf_human_relation: surf?.surf?.humanRelation    ?? null,
+    // Swell (dominant = highest impact)
+    swell_height:        swell?.height                ?? null,
+    swell_period:        swell?.period                ?? null,
+    swell_direction:     swell?.direction             ?? null,
     // Wind
     wind_speed:          wind?.speed                  ?? null,
     wind_direction:      wind?.direction              ?? null,
@@ -123,6 +135,8 @@ Deno.serve(async (req) => {
     tide_height:         tide?.height                 ?? null,
     // Rating
     spot_rating:         rating?.rating?.key          ?? null,
+    // Regional written report (null if unavailable)
+    report,
   };
 
   return new Response(JSON.stringify(result), {

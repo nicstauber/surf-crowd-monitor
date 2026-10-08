@@ -51,6 +51,22 @@ def write_observation(record: dict):
         return None
 
 
+def save_regional_report(report: dict) -> None:
+    """
+    Store a Surfline regional written report, once per (subregion, published_at).
+    Every spot in a subregion returns the same report, so repeats are ignored.
+    Failures are logged, never raised: the report is a nice-to-have and must
+    not cost the observation.
+    """
+    client = get_client()
+    try:
+        client.table("regional_reports").upsert(
+            report, on_conflict="subregion_id,published_at", ignore_duplicates=True
+        ).execute()
+    except Exception as e:
+        log.warning(f"Regional report save failed: {e}")
+
+
 def upload_frame(spot_id: str, captured_at: datetime, img_pil: Image.Image) -> str | None:
     """
     Upload the best frame JPEG to Supabase Storage bucket 'frames'.
