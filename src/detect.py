@@ -82,7 +82,24 @@ Respond ONLY with JSON, no other text:
   "conditions_notes": "<one sentence describing the overall session — e.g. 'Small clean chest-high sets with offshore grooming, glassy surface, light crowd spread across the peak'>"
 }
 
-If truly unable to count due to darkness or glare, set surfer_count to -1."""
+If darkness, fog, haze, or glare hides the water so you cannot see whether anyone is out, set surfer_count to -1. Use 0 only when the water is clearly visible and empty."""
+
+
+# Count-only variant for the ticks between hourly conditions assessments. It
+# reuses PART 1 verbatim so counts stay comparable with full-assessment ticks,
+# and drops the conditions fields, which are most of the (5x-priced) output.
+_COUNT_PROMPT = (
+    "You are a precise surf cam analyst. Analyze this image and return an exact surfer count.\n\n"
+    + _PROMPT[_PROMPT.index("PART 1"):_PROMPT.index("PART 2")].replace("PART 1 — SURFER COUNT\n", "")
+    + """Respond ONLY with JSON, no other text:
+{
+  "surfer_count": <exact integer>,
+  "confidence": "<low|medium|high>",
+  "count_notes": "<under 15 words on where surfers are, e.g. '6 in left lineup, 3 middle'>"
+}
+
+If darkness, fog, haze, or glare hides the water so you cannot see whether anyone is out, set surfer_count to -1. Use 0 only when the water is clearly visible and empty."""
+)
 
 
 def _encode_image(img_pil: Image.Image, max_width: int) -> str:
@@ -101,19 +118,28 @@ def analyze_frame(
     frame_label: str,
     client: anthropic.Anthropic,
     settings: dict,
+    include_conditions: bool = True,
 ) -> dict:
     """
-    Send full frame to Claude for surfer count + conditions assessment.
-    Returns a dict with keys: count, confidence, notes, conditions, conditions_notes.
+    Send full frame to Claude for surfer count + conditions assessment
+    (or a cheaper count-only call when include_conditions is False).
+    Returns a dict with keys: count, confidence, notes, conditions, conditions_notes,
+    plus model / input_tokens / output_tokens when the API call succeeded.
     count is -1 if Claude cannot determine a reliable count.
     """
     b64   = _encode_image(img_pil, settings["image_width"])
     model = settings["claude_model"]
 
+    # Haiku 5.5+ thinks by default and counts thinking toward max_tokens, so
+    # the cap must leave room for it on top of the ~200-token JSON reply.
+    kwargs = {}
+    if settings.get("claude_effort"):
+        kwargs["output_config"] = {"effort": settings["claude_effort"]}
+
     try:
         response = client.messages.create(
             model=model,
-            max_tokens=600,
+            max_tokens=settings.get("claude_max_tokens", 2000),
             messages=[{
                 "role": "user",
                 "content": [
@@ -125,12 +151,26 @@ def analyze_frame(
                             "data":       b64,
                         },
                     },
-                    {"type": "text", "text": _PROMPT},
+                    {"type": "text", "text": _PROMPT if include_conditions else _COUNT_PROMPT},
                 ],
             }],
+            **kwargs,
         )
 
-        raw    = response.content[0].text.strip()
+        usage = {
+            "model":         model,
+            "input_tokens":  response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens,
+        }
+
+        if response.stop_reason in ("refusal", "max_tokens"):
+            log.warning(f"[{frame_label}] Claude stopped early: {response.stop_reason}")
+            return {"count": -1, "confidence": "error",
+                    "notes": f"stop_reason={response.stop_reason}",
+                    "conditions": {}, "conditions_notes": "", **usage}
+
+        # Newer models can lead with thinking blocks — read the text block by type.
+        raw    = next(b.text for b in response.content if b.type == "text").strip()
         clean  = raw.replace("```json", "").replace("```", "").strip()
         parsed = json.loads(clean)
 
@@ -150,12 +190,13 @@ def analyze_frame(
             "notes":            notes,
             "conditions":       conditions,
             "conditions_notes": cond_notes,
+            **usage,
         }
 
     except json.JSONDecodeError as e:
         log.warning(f"[{frame_label}] JSON parse error: {e}")
         return {"count": -1, "confidence": "error", "notes": f"parse error: {e}",
-                "conditions": {}, "conditions_notes": ""}
+                "conditions": {}, "conditions_notes": "", **usage}
     except Exception as e:
         log.warning(f"[{frame_label}] API error: {e}")
         return {"count": -1, "confidence": "error", "notes": str(e),

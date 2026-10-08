@@ -17,8 +17,9 @@ Working spike script: `surf_spike_v6.py`
 - **Detection:** Claude vision, full-frame — no manual crop zones or tile splitting
 - **Count method:** Max across 3-frame burst (not average)
 - **Quality scoring:** Laplacian variance + patch noise (glare-aware); frames below threshold excluded from API calls
-- **Model:** `claude-haiku-4-5`
+- **Model:** `claude-haiku-5-5` at effort `medium` (Oct 2026 A/B vs 4.5 on hand-counted frames: ~2x smaller count error, ~5x cheaper; `scripts/compare_models.py`)
 - **Database:** Postgres on Supabase
+- **Cost controls:** conditions assessed once an hour per spot (count-only calls in between, conditions carried forward, `count_method` ends in `_count_only`); lineups with ≤2 surfers sampled every 30 min instead of 15. Tunable in `config/settings.json`
 - **Language:** Python
 
 ## Surf Spots
