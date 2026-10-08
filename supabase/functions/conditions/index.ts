@@ -56,6 +56,29 @@ Deno.serve(async (req) => {
   }
 
   const { searchParams } = new URL(req.url);
+
+  // Diagnostics: ?raw=<path> returns Surfline's untouched response (status +
+  // body) for read-only public API paths, with any other params forwarded.
+  // Lets us see schema changes from outside Cloudflare's CI-IP block.
+  const raw = searchParams.get("raw");
+  if (raw) {
+    if (!/^(kbyg\/[\w/]+|taxonomy|feed\/[\w/]+)$/.test(raw)) {
+      return new Response(JSON.stringify({ error: "raw path not allowed" }), {
+        status: 400,
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+    const fwd = new URLSearchParams(searchParams);
+    fwd.delete("raw");
+    const r = await fetch(`https://services.surfline.com/${raw}?${fwd}`, {
+      headers: SURFLINE_HEADERS,
+    });
+    const body = (await r.text()).slice(0, 200_000);
+    return new Response(JSON.stringify({ status: r.status, body }), {
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+    });
+  }
+
   const spotId = searchParams.get("spotId");
 
   if (!spotId) {
