@@ -61,6 +61,8 @@ def fetch_conditions(spot: dict, captured_at: datetime) -> dict:
         f"Tide: {data.get('tide_height')}ft  "
         f"Rating: {data.get('spot_rating')}"
     )
+    if data.get("upstream_failures"):
+        log.warning(f"[{spot_id}] Surfline calls failed after retries: {data['upstream_failures']}")
     if data.get("report"):
         rep = data["report"]
         log.info(f"[{spot_id}] Report: {rep.get('subregion_name')} @ {rep.get('published_at')} "

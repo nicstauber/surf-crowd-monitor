@@ -40,14 +40,34 @@ function closest(arr: Record<string, unknown>[], ts: number) {
   );
 }
 
-async function getJson(url: string): Promise<Record<string, unknown> | null> {
-  try {
-    const r = await fetch(url, { headers: SURFLINE_HEADERS });
-    if (!r.ok) return null;
-    return await r.json();
-  } catch {
-    return null;
+// Why each upstream call failed on its last attempt (HTTP status or error
+// message), keyed by endpoint. Returned to the caller and stored in
+// conditions_raw so intermittent gaps can be diagnosed from the database.
+type Failures = Record<string, string>;
+
+// Surfline intermittently fails single requests (a different endpoint each
+// time), so retry a few times before giving up on a field.
+async function getJson(
+  name: string,
+  url: string,
+  failures: Failures,
+): Promise<Record<string, unknown> | null> {
+  const delaysMs = [0, 400, 1200];
+  for (const delay of delaysMs) {
+    if (delay) await new Promise((res) => setTimeout(res, delay));
+    try {
+      const r = await fetch(url, { headers: SURFLINE_HEADERS });
+      if (r.ok) {
+        delete failures[name];
+        return await r.json();
+      }
+      failures[name] = `HTTP ${r.status}`;
+      await r.body?.cancel();
+    } catch (e) {
+      failures[name] = String(e).slice(0, 120);
+    }
   }
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -72,13 +92,14 @@ Deno.serve(async (req) => {
 
   // /wave was retired (404) around 2026-09-01; surf height and swells are
   // now separate endpoints.
+  const failures: Failures = {};
   const [surfRes, swellsRes, windRes, tidesRes, ratingRes, reportRes] = await Promise.all([
-    getJson(`${SURFLINE_BASE}/surf?${params}`),
-    getJson(`${SURFLINE_BASE}/swells?${params}`),
-    getJson(`${SURFLINE_BASE}/wind?${params}`),
-    getJson(`${SURFLINE_BASE}/tides?${params}`),
-    getJson(`${SURFLINE_BASE}/rating?${params}`),
-    getJson(`${SURFLINE_REPORTS}?spotId=${spotId}`),
+    getJson("surf",   `${SURFLINE_BASE}/surf?${params}`,     failures),
+    getJson("swells", `${SURFLINE_BASE}/swells?${params}`,   failures),
+    getJson("wind",   `${SURFLINE_BASE}/wind?${params}`,     failures),
+    getJson("tides",  `${SURFLINE_BASE}/tides?${params}`,    failures),
+    getJson("rating", `${SURFLINE_BASE}/rating?${params}`,   failures),
+    getJson("report", `${SURFLINE_REPORTS}?spotId=${spotId}`, failures),
   ]);
 
   // deno-lint-ignore no-explicit-any
@@ -137,13 +158,18 @@ Deno.serve(async (req) => {
     spot_rating:         rating?.rating?.key          ?? null,
     // Regional written report (null if unavailable)
     report,
+    // Endpoints that still failed after retries, e.g. {"wind": "HTTP 429"}
+    upstream_failures: failures,
   };
 
+  const complete = Object.keys(failures).length === 0;
   return new Response(JSON.stringify(result), {
     headers: {
       ...CORS_HEADERS,
       "Content-Type": "application/json",
-      "Cache-Control": "public, max-age=300", // cache 5 min at CDN edge
+      // Cache complete results 5 min at the CDN edge; never cache a partial
+      // one, or every caller for the next 5 min inherits the gap.
+      "Cache-Control": complete ? "public, max-age=300" : "no-store",
     },
   });
 });
