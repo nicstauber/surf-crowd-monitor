@@ -32,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from capture    import fetch_burst, score_frames
 from conditions import fetch_conditions
-from db         import get_client, write_observation, upload_frame
+from db         import get_client, write_observation, upload_frame, recent_observations
 from detect     import analyze_frame
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -111,6 +111,45 @@ def next_active_start(spots: list[dict], dt_utc: datetime):
     return min(candidates) if candidates else None
 
 
+# ─── Cost-saving plan per spot ────────────────────────────────────────────────
+
+_COUNT_METHOD  = "claude_vision_full_frame_best_frame_v7"
+_COUNT_ONLY    = "_count_only"
+_VISION_FIELDS = [
+    "vision_surface", "vision_swell_size", "vision_wave_quality", "vision_wind_effect",
+    "vision_crowd_distribution", "vision_water_clarity", "vision_lighting",
+    "vision_visibility", "vision_conditions_notes",
+]
+
+
+def plan_spot(rows: list[dict], now: datetime, settings: dict) -> tuple[str, dict | None]:
+    """
+    Decide what this tick does for one spot, from its recent rows (newest first):
+      ("skip",  None)  quiet lineup sampled recently — sample every 30 min, not 15
+      ("count", row)   conditions assessed within the hour — count only, carry `row`'s
+      ("full",  None)  count + conditions assessment
+    Each threshold has 5 minutes of slack so a late GitHub Actions tick still lines up.
+    """
+    def age_min(row):
+        return (now - datetime.fromisoformat(row["captured_at"])).total_seconds() / 60
+
+    if rows:
+        last = rows[0]
+        if (last.get("count_reliable")
+                and last.get("surfer_count") is not None
+                and last["surfer_count"] <= settings["quiet_count_threshold"]
+                and age_min(last) < settings["quiet_interval_minutes"] - 5):
+            return "skip", None
+
+    for row in rows:
+        if (not (row.get("count_method") or "").endswith(_COUNT_ONLY)
+                and row.get("vision_surface")
+                and age_min(row) < settings["conditions_interval_minutes"] - 5):
+            return "count", row
+
+    return "full", None
+
+
 # ─── Sample cycle ─────────────────────────────────────────────────────────────
 
 def run_spot_sample(
@@ -119,9 +158,13 @@ def run_spot_sample(
     claude_client: anthropic.Anthropic,
     output_dir:   Path,
     skip_db:      bool = False,
+    last_assessment: dict | None = None,
 ):
     """
-    Run a full sample cycle for one spot:
+    Run a full sample cycle for one spot. When `last_assessment` (a recent row
+    with a conditions assessment) is given, Claude only counts and that row's
+    vision_* conditions are carried into this record.
+
       1. Fetch burst
       2. Score quality
       3. Claude vision count on qualifying frames
@@ -153,7 +196,8 @@ def run_spot_sample(
     if qualifying:
         best_qual = max(qualifying, key=lambda x: x["quality"]["overall_score"])
         result = analyze_frame(
-            best_qual["image"], f"{spot_id}/F{best_qual['index']}", claude_client, settings
+            best_qual["image"], f"{spot_id}/F{best_qual['index']}", claude_client, settings,
+            include_conditions=last_assessment is None,
         )
         best_qual.update(result)
         log.info(
@@ -204,7 +248,7 @@ def run_spot_sample(
         "spot_name":        spot["name"],
         "surfer_count":     surfer_count,
         "count_reliable":   count_reliable,
-        "count_method":     "claude_vision_full_frame_best_frame_v7",
+        "count_method":     _COUNT_METHOD + ("" if last_assessment is None else _COUNT_ONLY),
         "session_quality":  round(mean(all_scores), 3),
         "frame_quality_avg": round(mean(all_scores), 3),
         "lap_var_avg":      round(mean(all_laps), 1),
@@ -234,6 +278,7 @@ def run_spot_sample(
                 "count":      fr.get("count", -1),
                 "confidence": fr.get("confidence", "n/a"),
                 "notes":      fr.get("notes", ""),
+                **{k: fr[k] for k in ("model", "input_tokens", "output_tokens") if k in fr},
                 "quality": {
                     "score":     fr["quality"]["overall_score"],
                     "grade":     fr["quality"]["grade"],
@@ -245,6 +290,11 @@ def run_spot_sample(
         ],
         "claude_notes": claude_notes,
     }
+
+    if last_assessment is not None:
+        # Conditions barely move in an hour; reuse the latest assessment so the
+        # dashboard keeps showing them. count_method marks the row as count-only.
+        record.update({k: last_assessment.get(k) for k in _VISION_FIELDS})
 
     # 8. Upload best frame to Supabase Storage
     frame_url = None
@@ -281,10 +331,26 @@ def run_sample_cycle(
     enabled = [s for s in spots if s.get("enabled")]
     log.info(f"Starting sample cycle — {len(enabled)} enabled spot(s)")
 
-    tally = {"ok": 0, "no_frames": 0, "write_failed": 0, "error": 0}
+    # Recent rows drive the quiet-lineup skip and the hourly conditions
+    # assessment. Without them (no DB, or the read failed) every spot gets a
+    # full sample, which costs more but never loses data.
+    now    = datetime.now(timezone.utc)
+    window = max(settings["conditions_interval_minutes"], settings["quiet_interval_minutes"])
+    recent = None if skip_db else recent_observations(now - timedelta(minutes=window))
+    if recent is None:
+        log.warning("No recent observations available — full sample for every spot")
+
+    tally = {"ok": 0, "no_frames": 0, "write_failed": 0, "error": 0, "skipped": 0}
     for spot in enabled:
         try:
-            outcome = run_spot_sample(spot, settings, claude_client, output_dir, skip_db=skip_db)
+            rows = [r for r in (recent or []) if r["spot_id"] == spot["id"]]
+            action, last_assessment = plan_spot(rows, now, settings)
+            if action == "skip":
+                log.info(f"[{spot['id']}] Quiet lineup sampled recently — skipping this tick")
+                tally["skipped"] += 1
+                continue
+            outcome = run_spot_sample(spot, settings, claude_client, output_dir,
+                                      skip_db=skip_db, last_assessment=last_assessment)
             tally[outcome] = tally.get(outcome, 0) + 1
         except Exception as e:
             log.error(f"[{spot['id']}] Unhandled error: {e}", exc_info=True)
@@ -292,7 +358,7 @@ def run_sample_cycle(
 
     log.info(
         f"Cycle tally — ok={tally['ok']} no_frames={tally['no_frames']} "
-        f"write_failed={tally['write_failed']} error={tally['error']}"
+        f"write_failed={tally['write_failed']} error={tally['error']} skipped={tally['skipped']}"
     )
     return tally
 
@@ -360,7 +426,7 @@ def main() -> None:
         if failed:
             log.error(f"{failed} spot(s) failed to persist — failing the run")
             sys.exit(1)
-        if tally["ok"] == 0:
+        if tally["ok"] == 0 and tally["skipped"] == 0:
             log.error("No spot produced a usable sample — failing the run")
             sys.exit(1)
 

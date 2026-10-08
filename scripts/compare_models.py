@@ -47,11 +47,14 @@ logging.basicConfig(level=logging.WARNING, format="%(levelname)-8s %(message)s")
 
 _ROOT = Path(__file__).resolve().parent.parent
 
-# (label, model, effort). The first arm is the baseline the others are compared to.
+# (label, model, effort, include_conditions). The first arm is the baseline the
+# others are compared to. "count" arms use the count-only prompt the scheduler
+# sends between hourly conditions assessments.
 ARMS = [
-    ("haiku-4.5",        "claude-haiku-4-5", None),
-    ("haiku-5.5 low",    "claude-haiku-5-5", "low"),
-    ("haiku-5.5 medium", "claude-haiku-5-5", "medium"),
+    ("haiku-4.5",        "claude-haiku-4-5", None,     True),
+    ("haiku-5.5 low",    "claude-haiku-5-5", "low",    True),
+    ("haiku-5.5 medium", "claude-haiku-5-5", "medium", True),
+    ("haiku-5.5 count",  "claude-haiku-5-5", "low",    False),
 ]
 
 # USD per million tokens (input, output) — prompts here are far under 100K tokens.
@@ -136,9 +139,10 @@ def main():
     for path in frames:
         img = Image.open(path).convert("RGB")
         row = {"frame": path.name, "spot": path.name.split("__")[0]}
-        for label, model, effort in ARMS:
+        for label, model, effort, full in ARMS:
             arm_settings = {**settings, "claude_model": model, "claude_effort": effort}
-            res = analyze_frame(img, f"{row['spot']}/{label}", client, arm_settings)
+            res = analyze_frame(img, f"{row['spot']}/{label}", client, arm_settings,
+                                include_conditions=full)
             in_tok, out_tok = res.get("input_tokens", 0), res.get("output_tokens", 0)
             row[label] = {
                 "count":   res["count"],
@@ -147,7 +151,7 @@ def main():
                 "cost":    call_cost(model, in_tok, out_tok) if in_tok else 0.0,
             }
         rows.append(row)
-        counts = "  ".join(f"{label}={row[label]['count']:>3}" for label, _, _ in ARMS)
+        counts = "  ".join(f"{label}={row[label]['count']:>3}" for label, *_ in ARMS)
         print(f"  {row['spot']:<22} {counts}")
 
     # ── Summary ───────────────────────────────────────────────────────────────
@@ -157,7 +161,7 @@ def main():
     print(f"{'Model':<18} {'Exact':>6} {'±1':>6} {'±2':>6} {'Avg diff':>9} "
           f"{'In tok':>7} {'Out tok':>8} {'$/call':>9} {f'$/mo @{args.project_spots}':>10}")
     print("─" * 78)
-    for label, model, _ in ARMS:
+    for label, model, *_ in ARMS:
         valid = [r for r in rows if r[label]["count"] >= 0 and r[base]["count"] >= 0]
         diffs = [abs(r[label]["count"] - r[base]["count"]) for r in valid]
         ok    = [r[label] for r in rows if r[label]["in_tok"]]
@@ -176,21 +180,21 @@ def main():
 
     # Biggest disagreements first, so the frames worth eyeballing are on top.
     def spread(r):
-        c = [r[label]["count"] for label, _, _ in ARMS if r[label]["count"] >= 0]
+        c = [r[label]["count"] for label, *_ in ARMS if r[label]["count"] >= 0]
         return max(c) - min(c) if c else 0
     for r in sorted(rows, key=spread, reverse=True)[:5]:
         if spread(r) == 0:
             break
-        counts = ", ".join(f"{label}={r[label]['count']}" for label, _, _ in ARMS)
+        counts = ", ".join(f"{label}={r[label]['count']}" for label, *_ in ARMS)
         print(f"  🔍 {run_dir / r['frame']}\n     {counts}")
 
     csv_path = run_dir / "results.csv"
     with csv_path.open("w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["frame", "spot"] + [f"{label} {k}" for label, _, _ in ARMS
+        w.writerow(["frame", "spot"] + [f"{label} {k}" for label, *_ in ARMS
                                         for k in ("count", "in_tok", "out_tok", "cost")])
         for r in rows:
-            w.writerow([r["frame"], r["spot"]] + [r[label][k] for label, _, _ in ARMS
+            w.writerow([r["frame"], r["spot"]] + [r[label][k] for label, *_ in ARMS
                                                   for k in ("count", "in_tok", "out_tok", "cost")])
     print(f"\n📄 Full results: {csv_path}")
 

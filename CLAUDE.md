@@ -19,6 +19,7 @@ Working spike script: `surf_spike_v6.py`
 - **Quality scoring:** Laplacian variance + patch noise (glare-aware); frames below threshold excluded from API calls
 - **Model:** `claude-haiku-4-5`
 - **Database:** Postgres on Supabase
+- **Cost controls:** conditions assessed once an hour per spot (count-only calls in between, conditions carried forward, `count_method` ends in `_count_only`); lineups with ≤2 surfers sampled every 30 min instead of 15. Tunable in `config/settings.json`
 - **Language:** Python
 
 ## Surf Spots

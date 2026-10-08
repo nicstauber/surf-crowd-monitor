@@ -101,3 +101,23 @@ def latest_observations(spot_id: str, limit: int = 10):
     except Exception as e:
         log.error(f"DB read failed: {e}")
         return []
+
+
+def recent_observations(since: datetime) -> list[dict] | None:
+    """
+    Fetch every spot's observations captured at or after `since`, newest first.
+    Returns None (not []) on failure so callers can tell "no rows" from "unknown".
+    """
+    client = get_client()
+    try:
+        response = (
+            client.table(_TABLE)
+            .select("*")
+            .gte("captured_at", since.isoformat())
+            .order("captured_at", desc=True)
+            .execute()
+        )
+        return response.data or []
+    except Exception as e:
+        log.error(f"DB read failed: {e}")
+        return None

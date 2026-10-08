@@ -85,6 +85,23 @@ Respond ONLY with JSON, no other text:
 If truly unable to count due to darkness or glare, set surfer_count to -1."""
 
 
+# Count-only variant for the ticks between hourly conditions assessments. It
+# reuses PART 1 verbatim so counts stay comparable with full-assessment ticks,
+# and drops the conditions fields, which are most of the (5x-priced) output.
+_COUNT_PROMPT = (
+    "You are a precise surf cam analyst. Analyze this image and return an exact surfer count.\n\n"
+    + _PROMPT[_PROMPT.index("PART 1"):_PROMPT.index("PART 2")].replace("PART 1 — SURFER COUNT\n", "")
+    + """Respond ONLY with JSON, no other text:
+{
+  "surfer_count": <exact integer>,
+  "confidence": "<low|medium|high>",
+  "count_notes": "<under 15 words on where surfers are, e.g. '6 in left lineup, 3 middle'>"
+}
+
+If truly unable to count due to darkness or glare, set surfer_count to -1."""
+)
+
+
 def _encode_image(img_pil: Image.Image, max_width: int) -> str:
     """Resize and base64-encode image as JPEG."""
     if img_pil.width > max_width:
@@ -101,9 +118,11 @@ def analyze_frame(
     frame_label: str,
     client: anthropic.Anthropic,
     settings: dict,
+    include_conditions: bool = True,
 ) -> dict:
     """
-    Send full frame to Claude for surfer count + conditions assessment.
+    Send full frame to Claude for surfer count + conditions assessment
+    (or a cheaper count-only call when include_conditions is False).
     Returns a dict with keys: count, confidence, notes, conditions, conditions_notes,
     plus model / input_tokens / output_tokens when the API call succeeded.
     count is -1 if Claude cannot determine a reliable count.
@@ -132,7 +151,7 @@ def analyze_frame(
                             "data":       b64,
                         },
                     },
-                    {"type": "text", "text": _PROMPT},
+                    {"type": "text", "text": _PROMPT if include_conditions else _COUNT_PROMPT},
                 ],
             }],
             **kwargs,
