@@ -104,16 +104,23 @@ def analyze_frame(
 ) -> dict:
     """
     Send full frame to Claude for surfer count + conditions assessment.
-    Returns a dict with keys: count, confidence, notes, conditions, conditions_notes.
+    Returns a dict with keys: count, confidence, notes, conditions, conditions_notes,
+    plus model / input_tokens / output_tokens when the API call succeeded.
     count is -1 if Claude cannot determine a reliable count.
     """
     b64   = _encode_image(img_pil, settings["image_width"])
     model = settings["claude_model"]
 
+    # Haiku 5.5+ thinks by default and counts thinking toward max_tokens, so
+    # the cap must leave room for it on top of the ~200-token JSON reply.
+    kwargs = {}
+    if settings.get("claude_effort"):
+        kwargs["output_config"] = {"effort": settings["claude_effort"]}
+
     try:
         response = client.messages.create(
             model=model,
-            max_tokens=600,
+            max_tokens=settings.get("claude_max_tokens", 2000),
             messages=[{
                 "role": "user",
                 "content": [
@@ -128,9 +135,23 @@ def analyze_frame(
                     {"type": "text", "text": _PROMPT},
                 ],
             }],
+            **kwargs,
         )
 
-        raw    = response.content[0].text.strip()
+        usage = {
+            "model":         model,
+            "input_tokens":  response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens,
+        }
+
+        if response.stop_reason in ("refusal", "max_tokens"):
+            log.warning(f"[{frame_label}] Claude stopped early: {response.stop_reason}")
+            return {"count": -1, "confidence": "error",
+                    "notes": f"stop_reason={response.stop_reason}",
+                    "conditions": {}, "conditions_notes": "", **usage}
+
+        # Newer models can lead with thinking blocks — read the text block by type.
+        raw    = next(b.text for b in response.content if b.type == "text").strip()
         clean  = raw.replace("```json", "").replace("```", "").strip()
         parsed = json.loads(clean)
 
@@ -150,12 +171,13 @@ def analyze_frame(
             "notes":            notes,
             "conditions":       conditions,
             "conditions_notes": cond_notes,
+            **usage,
         }
 
     except json.JSONDecodeError as e:
         log.warning(f"[{frame_label}] JSON parse error: {e}")
         return {"count": -1, "confidence": "error", "notes": f"parse error: {e}",
-                "conditions": {}, "conditions_notes": ""}
+                "conditions": {}, "conditions_notes": "", **usage}
     except Exception as e:
         log.warning(f"[{frame_label}] API error: {e}")
         return {"count": -1, "confidence": "error", "notes": str(e),
