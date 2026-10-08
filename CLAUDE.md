@@ -53,6 +53,6 @@ All HLS streams follow: `https://hls.cdn-surfline.com/oregon/[slug]/playlist.m3u
 - HLS streams require `origin: https://www.surfline.com` and `referer: https://www.surfline.com/` headers
 - No authentication needed for the camera streams
 - Conditions come from the unofficial Surfline REST API via the `conditions` Supabase Edge Function (Surfline's Cloudflare blocks CI/sandbox IPs; Supabase is not blocked). Endpoints confirmed working Oct 2026, all under `https://services.surfline.com/kbyg/spots/`:
-  - `forecasts/surf` (wave height), `forecasts/swells` (swell slots are unordered — pick by max `impact`), `forecasts/wind`, `forecasts/tides`, `forecasts/rating`
-  - `reports?spotId=` — regional written forecast in `report` (`headline`, `body` HTML, `forecaster`, `timestamp`); subregion ID is the last segment of `associated.subregionUrl`. Stored in the `regional_reports` table.
+  - **The function makes one call per spot: `reports?spotId=`.** Its `forecast` holds current `waveHeight`, `swells` (unordered — pick by max `power`), `wind`, `tide.current`, `conditions.value` (rating), `waterTemp`; its `report` holds the regional written forecast (`headline`, `body` HTML, `forecaster`, `timestamp`; subregion ID = last segment of `associated.subregionUrl`), stored in the `regional_reports` table.
+  - Don't fan out to several endpoints per spot: six parallel calls (`forecasts/surf`, `/swells`, `/wind`, `/tides`, `/rating` + `reports`) drew Cloudflare HTTP 403s on random calls, even with retries (Oct 2026).
   - `forecasts/wave` was retired (404) around 2026-09-01
