@@ -14,6 +14,8 @@ is safe to run from anywhere. Checks, in order:
   2. anon can SELECT            -- the dashboard depends on this
   3. anon CANNOT INSERT         -- i.e. RLS is enabled (migration 004)
   4. how stale the newest observation is
+  5. every enabled spot is keeping up -- one dead cam cannot hide behind
+     nine healthy ones
 
 Exits non-zero if any check fails, so it can be wired into CI later.
 """
@@ -27,6 +29,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 DASHBOARD = Path(__file__).resolve().parent.parent / "docs" / "index.html"
+SPOTS = Path(__file__).resolve().parent.parent / "docs" / "spots.json"
 STALE_HOURS = 3  # a healthy 15-min schedule should never exceed this by much
 
 
@@ -104,7 +107,31 @@ def main() -> None:
             f"newest observation {newest:%Y-%m-%d %H:%M} UTC ({age_h:.1f}h ago)",
         )
     else:
+        newest = None
         report(False, "data is fresh", f"could not read newest row (HTTP {status})")
+
+    # 5. Per-spot freshness. Measured against the newest row overall rather than
+    #    the wall clock, so the overnight gap (when every spot is idle) is not
+    #    reported as N separate failures.
+    if newest:
+        spots = [s["id"] for s in json.loads(SPOTS.read_text())["spots"] if s.get("enabled")]
+        lagging = []
+        for spot_id in spots:
+            status, body = request(url, key, f"/rest/v1/observations?select=captured_at"
+                                             f"&spot_id=eq.{spot_id}&order=captured_at.desc&limit=1")
+            if status != 200:
+                lagging.append(f"{spot_id} (HTTP {status})")
+            elif not body:
+                lagging.append(f"{spot_id} (no rows)")
+            else:
+                behind_h = (newest - datetime.fromisoformat(body[0]["captured_at"])).total_seconds() / 3600
+                if behind_h > STALE_HOURS:
+                    lagging.append(f"{spot_id} ({behind_h:.0f}h behind)")
+        report(
+            not lagging,
+            "every spot reporting",
+            f"all {len(spots)} spots current" if not lagging else "lagging: " + ", ".join(lagging),
+        )
 
     print()
     if failures:

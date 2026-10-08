@@ -53,3 +53,16 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+      # Dead man's switch (see SCHEDULING.md). Pings only when a sample was
+      # attempted, so overnight no-op ticks stay silent; a failed sample pings
+      # /fail so the alert fires at once instead of after the grace period.
+      - name: Ping healthcheck
+        if: always() && steps.window.outputs.active == 'true'
+        env:
+          HC_URL: ${{ secrets.HEALTHCHECK_URL }}
+          OUTCOME: ${{ job.status }}
+        run: |
+          if [ -z "$HC_URL" ]; then echo "HEALTHCHECK_URL not set; skipping"; exit 0; fi
+          suffix=""; [ "$OUTCOME" = "success" ] || suffix="/fail"
+          curl -fsS -m 10 --retry 3 -o /dev/null "$HC_URL$suffix" || echo "::warning::healthcheck ping failed"
