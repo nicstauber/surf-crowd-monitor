@@ -82,7 +82,7 @@ Respond ONLY with JSON, no other text:
   "conditions_notes": "<one sentence describing the overall session — e.g. 'Small clean chest-high sets with offshore grooming, glassy surface, light crowd spread across the peak'>"
 }
 
-If truly unable to count due to darkness or glare, set surfer_count to -1."""
+If darkness, fog, haze, or glare hides the water so you cannot see whether anyone is out, set surfer_count to -1. Use 0 only when the water is clearly visible and empty."""
 
 
 # Count-only variant for the ticks between hourly conditions assessments. It
@@ -98,7 +98,7 @@ _COUNT_PROMPT = (
   "count_notes": "<under 15 words on where surfers are, e.g. '6 in left lineup, 3 middle'>"
 }
 
-If truly unable to count due to darkness or glare, set surfer_count to -1."""
+If darkness, fog, haze, or glare hides the water so you cannot see whether anyone is out, set surfer_count to -1. Use 0 only when the water is clearly visible and empty."""
 )
 
 
