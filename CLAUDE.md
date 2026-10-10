@@ -23,24 +23,29 @@ Working spike script: `surf_spike_v6.py`
 - **Language:** Python
 
 ## Surf Spots
+Listed north to south — the same order as `docs/spots.json`, which sets the dashboard order.
+
 | Key | Display Name | Surfline slug |
 |-----|-------------|--------------|
-| `lower_trestles` | Lower Trestles | `wc-lowers` |
-| `upper_trestles` | Upper Trestles | `wc-upperstrestles` |
-| `doheny_second_spot` | Doheny - The Hammer | `wc-secondspotdoheny` |
-| `hb_pier_south` | HB Pier South | `wc-hbpierssov` |
+| `malibu` | Malibu - Surfrider Beach | `wc-malibusurfrider` |
+| `el_porto` | El Porto - 42nd Street | `wc-elporto42nd` |
+| `seal_beach_jetty` | Seal Beach Jetty | `wc-sealbeachjetty4k` |
+| `bolsa_chica_tower17` | Bolsa Chica - Tower 17 | `wc-tower17southbolsa` |
 | `hb_cliffs` | North HB - Goldenwest | `wc-goldenwest` |
 | `north_hb_20th` | North HB - 20th Street | `wc-twentiethst` |
-| `bolsa_chica_tower17` | Bolsa Chica - Tower 17 | `wc-tower17southbolsa` |
-| `newport_56th` | Newport 56th | `wc-fiftysixnewport` |
-| `el_porto` | El Porto - 42nd Street | `wc-elporto42nd` |
-| `malibu` | Malibu - Surfrider Beach | `wc-malibusurfrider` |
+| `hb_pier_south_tower1` | HB Pier South - Tower 1-3 | `wc-hbpierss` |
+| `hb_pier_south` | HB Pier South | `wc-hbpierssov` |
 | `river_jetties_north` | River Jetties - North | `wc-riverjettiesnorth` |
+| `newport_56th` | Newport 56th | `wc-fiftysixnewport` |
+| `newport_54th` | Newport 54th | `wc-fiftyfournewport` |
+| `newport_36th` | Newport 36th | `wc-36thstnewport` |
 | `newport_point` | Newport Point | `wc-newportpierss` |
+| `the_wedge` | The Wedge | `wc-wedgeov` |
 | `corona_del_mar` | Corona del Mar | `wc-coronadelmar` |
 | `salt_creek` | Salt Creek | `wc-saltcreek` |
-| `hb_pier_south_tower1` | HB Pier South - Tower 1-3 | `wc-hbpierss` |
-| `newport_54th` | Newport 54th | `wc-fiftyfournewport` |
+| `doheny_second_spot` | Doheny - The Hammer | `wc-secondspotdoheny` |
+| `upper_trestles` | Upper Trestles | `wc-upperstrestles` |
+| `lower_trestles` | Lower Trestles | `wc-lowers` |
 
 All HLS streams follow: `https://hls.cdn-surfline.com/oregon/[slug]/playlist.m3u8`
 
