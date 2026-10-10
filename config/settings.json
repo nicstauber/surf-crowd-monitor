@@ -10,7 +10,7 @@
   "quality_threshold": 0.45,
   "claude_model": "claude-haiku-5-5",
   "claude_effort": "medium",
-  "claude_max_tokens": 2000,
+  "claude_max_tokens": 4000,
   "image_width": 1280,
   "output_dir": "./spike_output"
 }

@@ -15,13 +15,17 @@ from PIL import Image
 
 log = logging.getLogger(__name__)
 
-_PROMPT = """You are a precise surf cam analyst. Analyze this image and return two things: an exact surfer count and a conditions assessment.
+_PROMPT = """You are a precise surf cam analyst. Analyze this image and return two things: the location of every surfer and a conditions assessment.
 
 PART 1 — SURFER COUNT
-Count every person in the water using this method:
+Locate every person in the water and give each one its own point. Do not
+estimate a total: the count is the number of points you list, so a person
+you do not list is not counted, and a guessed round number is useless.
 1. Scan LEFT to RIGHT in horizontal strips across the full water area
-2. Mark every dark figure, dot, or silhouette on or in the water
-3. Count each one individually — do not round or approximate
+2. For every dark figure, dot, or silhouette on or in the water, add one
+   [x, y] point at its centre. x and y are integers from 0 to 1000, measured
+   from the image's left edge and top edge as a fraction of its width and height
+3. List each person exactly once — a tight cluster of 6 is 6 separate points
 
 COUNT THESE:
 - Surfers sitting on boards in the lineup
@@ -66,7 +70,8 @@ IMPORTANT: Use only the exact values listed for each field. Do not invent new va
 
 Respond ONLY with JSON, no other text:
 {
-  "surfer_count": <exact integer>,
+  "water_visible": <true|false>,
+  "surfers": [[<x>, <y>], ...],
   "confidence": "<low|medium|high>",
   "count_notes": "<where surfers are located, e.g. 'cluster of 6 in left lineup, 3 scattered middle'>",
   "conditions": {
@@ -82,24 +87,46 @@ Respond ONLY with JSON, no other text:
   "conditions_notes": "<one sentence describing the overall session — e.g. 'Small clean chest-high sets with offshore grooming, glassy surface, light crowd spread across the peak'>"
 }
 
-If darkness, fog, haze, or glare hides the water so you cannot see whether anyone is out, set surfer_count to -1. Use 0 only when the water is clearly visible and empty."""
+If darkness, fog, haze, or glare hides the water so you cannot see whether anyone is out, set water_visible to false. An empty surfers list means the water is clearly visible and empty."""
 
 
 # Count-only variant for the ticks between hourly conditions assessments. It
 # reuses PART 1 verbatim so counts stay comparable with full-assessment ticks,
 # and drops the conditions fields, which are most of the (5x-priced) output.
 _COUNT_PROMPT = (
-    "You are a precise surf cam analyst. Analyze this image and return an exact surfer count.\n\n"
+    "You are a precise surf cam analyst. Analyze this image and locate every surfer.\n\n"
     + _PROMPT[_PROMPT.index("PART 1"):_PROMPT.index("PART 2")].replace("PART 1 — SURFER COUNT\n", "")
     + """Respond ONLY with JSON, no other text:
 {
-  "surfer_count": <exact integer>,
+  "water_visible": <true|false>,
+  "surfers": [[<x>, <y>], ...],
   "confidence": "<low|medium|high>",
   "count_notes": "<under 15 words on where surfers are, e.g. '6 in left lineup, 3 middle'>"
 }
 
-If darkness, fog, haze, or glare hides the water so you cannot see whether anyone is out, set surfer_count to -1. Use 0 only when the water is clearly visible and empty."""
+If darkness, fog, haze, or glare hides the water so you cannot see whether anyone is out, set water_visible to false. An empty surfers list means the water is clearly visible and empty."""
 )
+
+
+def _dedupe_points(raw: list, min_gap: int = 3) -> list[list[int]]:
+    """
+    Clean Claude's [x, y] list (0-1000 scale): drop malformed or out-of-range
+    entries, and merge points closer than min_gap on both axes,
+    which are the same person listed twice rather than two people.
+    (3/1000 is ~4px on the 1280px frame Claude sees; real neighbours sit wider apart.)
+    """
+    kept: list[list[int]] = []
+    for p in raw:
+        try:
+            x, y = (int(round(float(v))) for v in p)
+        except (TypeError, ValueError):
+            continue
+        if not (0 <= x <= 1000 and 0 <= y <= 1000):
+            continue
+        if any(abs(x - kx) < min_gap and abs(y - ky) < min_gap for kx, ky in kept):
+            continue
+        kept.append([x, y])
+    return kept
 
 
 def _encode_image(img_pil: Image.Image, max_width: int) -> str:
@@ -139,7 +166,7 @@ def analyze_frame(
     try:
         response = client.messages.create(
             model=model,
-            max_tokens=settings.get("claude_max_tokens", 2000),
+            max_tokens=settings.get("claude_max_tokens", 4000),
             messages=[{
                 "role": "user",
                 "content": [
@@ -174,7 +201,13 @@ def analyze_frame(
         clean  = raw.replace("```json", "").replace("```", "").strip()
         parsed = json.loads(clean)
 
-        count      = int(parsed.get("surfer_count", -1))
+        # The count is how many people Claude located, never a number it
+        # states: asked for a total, Haiku 4.5 snapped big crowds to a few
+        # favourite values (731 rows of exactly 47, Mar-Oct 2026).
+        # A reply without a surfers list is malformed, not an empty lineup.
+        points     = _dedupe_points(parsed.get("surfers") or [])
+        visible    = parsed.get("water_visible", True) and isinstance(parsed.get("surfers"), list)
+        count      = len(points) if visible else -1
         conf       = parsed.get("confidence", "unknown")
         notes      = parsed.get("count_notes", "")
         conditions = parsed.get("conditions", {})
@@ -186,6 +219,7 @@ def analyze_frame(
 
         return {
             "count":            count,
+            "points":           points if count >= 0 else [],
             "confidence":       conf,
             "notes":            notes,
             "conditions":       conditions,

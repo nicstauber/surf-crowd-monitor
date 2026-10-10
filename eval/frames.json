@@ -1,0 +1,101 @@
+{
+  "_note": "Stored frames (640px) for scripts/eval_counts.py. stored_count is what the scheduler wrote at the time, not ground truth.",
+  "frames": [
+    {
+      "spot": "doheny_second_spot",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/doheny_second_spot/2026-08-09T22-52-44.jpg",
+      "stored_count": 47,
+      "stored_model": "claude-haiku-4-5"
+    },
+    {
+      "spot": "malibu",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/malibu/2026-08-01T14-04-23.jpg",
+      "stored_count": 47,
+      "stored_model": "claude-haiku-4-5"
+    },
+    {
+      "spot": "malibu",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/malibu/2026-09-17T19-12-05.jpg",
+      "stored_count": 47,
+      "stored_model": "claude-haiku-4-5"
+    },
+    {
+      "spot": "doheny_second_spot",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/doheny_second_spot/2026-08-29T15-24-27.jpg",
+      "stored_count": 47,
+      "stored_model": "claude-haiku-4-5"
+    },
+    {
+      "spot": "malibu",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/malibu/2026-08-09T15-54-53.jpg",
+      "stored_count": 28,
+      "stored_model": "claude-haiku-4-5"
+    },
+    {
+      "spot": "doheny_second_spot",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/doheny_second_spot/2026-09-09T14-57-24.jpg",
+      "stored_count": 28,
+      "stored_model": "claude-haiku-4-5"
+    },
+    {
+      "spot": "north_hb_20th",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/north_hb_20th/2026-08-22T18-58-41.jpg",
+      "stored_count": 12,
+      "stored_model": "claude-haiku-4-5"
+    },
+    {
+      "spot": "hb_pier_south",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/hb_pier_south/2026-09-01T21-21-32.jpg",
+      "stored_count": 12,
+      "stored_model": "claude-haiku-4-5"
+    },
+    {
+      "spot": "doheny_second_spot",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/doheny_second_spot/2026-10-09T16-01-36.jpg",
+      "stored_count": 28,
+      "stored_model": "claude-haiku-5-5"
+    },
+    {
+      "spot": "upper_trestles",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/upper_trestles/2026-10-09T14-15-59.jpg",
+      "stored_count": 34,
+      "stored_model": "claude-haiku-5-5"
+    },
+    {
+      "spot": "doheny_second_spot",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/doheny_second_spot/2026-10-09T23-15-57.jpg",
+      "stored_count": 40,
+      "stored_model": "claude-haiku-5-5"
+    },
+    {
+      "spot": "malibu",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/malibu/2026-10-09T21-18-10.jpg",
+      "stored_count": 35,
+      "stored_model": "claude-haiku-5-5"
+    },
+    {
+      "spot": "el_porto",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/el_porto/2026-10-09T15-03-16.jpg",
+      "stored_count": 22,
+      "stored_model": "claude-haiku-5-5"
+    },
+    {
+      "spot": "doheny_second_spot",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/doheny_second_spot/2026-10-08T22-15-29.jpg",
+      "stored_count": 24,
+      "stored_model": "claude-haiku-5-5"
+    },
+    {
+      "spot": "el_porto",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/el_porto/2026-10-09T14-04-04.jpg",
+      "stored_count": 9,
+      "stored_model": "claude-haiku-5-5"
+    },
+    {
+      "spot": "doheny_second_spot",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/doheny_second_spot/2026-10-09T01-46-24.jpg",
+      "stored_count": 24,
+      "stored_model": "claude-haiku-5-5"
+    }
+  ]
+}

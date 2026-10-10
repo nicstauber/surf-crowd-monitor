@@ -15,6 +15,7 @@ Working spike script: `surf_spike_v6.py`
 
 ### Key decisions already made
 - **Detection:** Claude vision, full-frame — no manual crop zones or tile splitting
+- **Count = number of located points, never a number Claude states.** Claude returns an `[x, y]` (0–1000) point per person and `detect.py` counts them (`count_method` `..._v8_points`, points kept in `frames_raw`). Asked for a total, Haiku 4.5 snapped crowds to favourite values (731 rows of exactly 47; 12 and 28 also overrepresented) — treat pre-Oct-8-2026 counts as coarse. Check prompt changes with `scripts/eval_counts.py` (runs in CI as "Count Eval")
 - **Count method:** Max across 3-frame burst (not average)
 - **Quality scoring:** Laplacian variance + patch noise (glare-aware); frames below threshold excluded from API calls
 - **Model:** `claude-haiku-5-5` at effort `medium` (Oct 2026 A/B vs 4.5 on hand-counted frames: ~2x smaller count error, ~5x cheaper; `scripts/compare_models.py`)

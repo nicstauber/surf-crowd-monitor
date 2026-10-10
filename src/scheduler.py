@@ -114,7 +114,7 @@ def next_active_start(spots: list[dict], dt_utc: datetime):
 
 # ─── Cost-saving plan per spot ────────────────────────────────────────────────
 
-_COUNT_METHOD  = "claude_vision_full_frame_best_frame_v7"
+_COUNT_METHOD  = "claude_vision_full_frame_best_frame_v8_points"
 _COUNT_ONLY    = "_count_only"
 _VISION_FIELDS = [
     "vision_surface", "vision_swell_size", "vision_wave_quality", "vision_wind_effect",
@@ -279,7 +279,7 @@ def run_spot_sample(
                 "count":      fr.get("count", -1),
                 "confidence": fr.get("confidence", "n/a"),
                 "notes":      fr.get("notes", ""),
-                **{k: fr[k] for k in ("model", "input_tokens", "output_tokens") if k in fr},
+                **{k: fr[k] for k in ("model", "input_tokens", "output_tokens", "points") if k in fr},
                 "quality": {
                     "score":     fr["quality"]["overall_score"],
                     "grade":     fr["quality"]["grade"],
