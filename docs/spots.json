@@ -99,6 +99,66 @@
       "lng": -118.6794,
       "timezone": "America/Los_Angeles",
       "enabled": true
+    },
+    {
+      "id": "river_jetties_north",
+      "name": "River Jetties - North",
+      "hls_slug": "wc-riverjettiesnorth",
+      "surfline_spot_id": "5842041f4e65fad6a77088ee",
+      "lat": 33.6278,
+      "lng": -117.9594,
+      "timezone": "America/Los_Angeles",
+      "enabled": true
+    },
+    {
+      "id": "newport_point",
+      "name": "Newport Point",
+      "hls_slug": "wc-newportpierss",
+      "surfline_spot_id": "5842041f4e65fad6a77088f2",
+      "lat": 33.6052,
+      "lng": -117.9250,
+      "timezone": "America/Los_Angeles",
+      "enabled": true
+    },
+    {
+      "id": "corona_del_mar",
+      "name": "Corona del Mar",
+      "hls_slug": "wc-coronadelmar",
+      "surfline_spot_id": "5842041f4e65fad6a77088f3",
+      "lat": 33.5898,
+      "lng": -117.8771,
+      "timezone": "America/Los_Angeles",
+      "enabled": true
+    },
+    {
+      "id": "salt_creek",
+      "name": "Salt Creek",
+      "hls_slug": "wc-saltcreek",
+      "surfline_spot_id": "5842041f4e65fad6a770882e",
+      "lat": 33.4758,
+      "lng": -117.7229,
+      "timezone": "America/Los_Angeles",
+      "enabled": true
+    },
+    {
+      "id": "hb_pier_south_tower1",
+      "name": "HB Pier South - Tower 1-3",
+      "hls_slug": "wc-hbpierss",
+      "surfline_spot_id": "5842041f4e65fad6a77088ed",
+      "lat": 33.6548,
+      "lng": -118.0029,
+      "timezone": "America/Los_Angeles",
+      "enabled": true
+    },
+    {
+      "id": "newport_54th",
+      "name": "Newport 54th",
+      "hls_slug": "wc-fiftyfournewport",
+      "surfline_spot_id": "5842041f4e65fad6a7708e54",
+      "lat": 33.6227,
+      "lng": -117.9469,
+      "timezone": "America/Los_Angeles",
+      "enabled": true
     }
   ]
 }
