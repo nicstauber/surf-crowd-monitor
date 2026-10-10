@@ -1,0 +1,39 @@
+name: Count Eval
+
+# Re-checks count stability whenever the vision prompt or the eval itself
+# changes: ~900 Haiku calls per run, well under a dollar. See scripts/eval_counts.py.
+on:
+  pull_request:
+    paths:
+      - src/detect.py
+      - scripts/eval_counts.py
+      - eval/**
+  workflow_dispatch:
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the eval imports detect.py from origin/main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Compare counts (main vs this branch)
+        run: python scripts/eval_counts.py --runs 2 --grids 3x2,4x2 --overlay-dir eval_overlays
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: count-overlays
+          path: eval_overlays/
+          if-no-files-found: ignore

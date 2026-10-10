@@ -1,0 +1,185 @@
+{
+  "_note": "Stored frames (640px) for scripts/eval_counts.py. truth is the hand count from the Lineup Answer Key page (null until counted; -1 = water not visible).",
+  "frames": [
+    {
+      "id": "f01",
+      "spot": "doheny_second_spot",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/doheny_second_spot/2026-08-09T22-52-44.jpg",
+      "truth": null
+    },
+    {
+      "id": "f02",
+      "spot": "malibu",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/malibu/2026-08-01T14-04-23.jpg",
+      "truth": null
+    },
+    {
+      "id": "f03",
+      "spot": "malibu",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/malibu/2026-09-17T19-12-05.jpg",
+      "truth": null
+    },
+    {
+      "id": "f04",
+      "spot": "doheny_second_spot",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/doheny_second_spot/2026-08-29T15-24-27.jpg",
+      "truth": null
+    },
+    {
+      "id": "f05",
+      "spot": "malibu",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/malibu/2026-08-09T15-54-53.jpg",
+      "truth": null
+    },
+    {
+      "id": "f06",
+      "spot": "doheny_second_spot",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/doheny_second_spot/2026-09-09T14-57-24.jpg",
+      "truth": null
+    },
+    {
+      "id": "f07",
+      "spot": "north_hb_20th",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/north_hb_20th/2026-08-22T18-58-41.jpg",
+      "truth": null
+    },
+    {
+      "id": "f08",
+      "spot": "hb_pier_south",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/hb_pier_south/2026-09-01T21-21-32.jpg",
+      "truth": null
+    },
+    {
+      "id": "f09",
+      "spot": "doheny_second_spot",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/doheny_second_spot/2026-10-09T16-01-36.jpg",
+      "truth": null
+    },
+    {
+      "id": "f10",
+      "spot": "upper_trestles",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/upper_trestles/2026-10-09T14-15-59.jpg",
+      "truth": null
+    },
+    {
+      "id": "f11",
+      "spot": "doheny_second_spot",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/doheny_second_spot/2026-10-09T23-15-57.jpg",
+      "truth": null
+    },
+    {
+      "id": "f12",
+      "spot": "malibu",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/malibu/2026-10-09T21-18-10.jpg",
+      "truth": null
+    },
+    {
+      "id": "f13",
+      "spot": "el_porto",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/el_porto/2026-10-09T15-03-16.jpg",
+      "truth": null
+    },
+    {
+      "id": "f14",
+      "spot": "doheny_second_spot",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/doheny_second_spot/2026-10-08T22-15-29.jpg",
+      "truth": null
+    },
+    {
+      "id": "f15",
+      "spot": "el_porto",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/el_porto/2026-10-09T14-04-04.jpg",
+      "truth": null
+    },
+    {
+      "id": "f16",
+      "spot": "doheny_second_spot",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/doheny_second_spot/2026-10-09T01-46-24.jpg",
+      "truth": null
+    },
+    {
+      "id": "f17",
+      "spot": "lower_trestles",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/lower_trestles/2026-10-08T20-30-27.jpg",
+      "truth": null
+    },
+    {
+      "id": "f18",
+      "spot": "hb_cliffs",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/hb_cliffs/2026-08-31T22-16-07.jpg",
+      "truth": null
+    },
+    {
+      "id": "f19",
+      "spot": "newport_56th",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/newport_56th/2026-10-02T16-27-26.jpg",
+      "truth": null
+    },
+    {
+      "id": "f20",
+      "spot": "malibu",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/malibu/2026-09-21T23-40-35.jpg",
+      "truth": null
+    },
+    {
+      "id": "f21",
+      "spot": "upper_trestles",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/upper_trestles/2026-08-05T23-10-34.jpg",
+      "truth": null
+    },
+    {
+      "id": "f22",
+      "spot": "north_hb_20th",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/north_hb_20th/2026-09-12T21-10-26.jpg",
+      "truth": null
+    },
+    {
+      "id": "f23",
+      "spot": "newport_56th",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/newport_56th/2026-08-04T20-46-42.jpg",
+      "truth": null
+    },
+    {
+      "id": "f24",
+      "spot": "bolsa_chica_tower17",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/bolsa_chica_tower17/2026-08-30T15-11-18.jpg",
+      "truth": null
+    },
+    {
+      "id": "f25",
+      "spot": "hb_cliffs",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/hb_cliffs/2026-08-07T21-02-13.jpg",
+      "truth": null
+    },
+    {
+      "id": "f26",
+      "spot": "lower_trestles",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/lower_trestles/2026-10-09T22-00-38.jpg",
+      "truth": null
+    },
+    {
+      "id": "f27",
+      "spot": "malibu",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/malibu/2026-09-13T17-46-35.jpg",
+      "truth": null
+    },
+    {
+      "id": "f28",
+      "spot": "el_porto",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/el_porto/2026-09-14T16-46-43.jpg",
+      "truth": null
+    },
+    {
+      "id": "f29",
+      "spot": "lower_trestles",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/lower_trestles/2026-10-09T17-00-30.jpg",
+      "truth": null
+    },
+    {
+      "id": "f30",
+      "spot": "el_porto",
+      "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/el_porto/2026-09-13T22-02-01.jpg",
+      "truth": null
+    }
+  ]
+}

@@ -14,7 +14,8 @@ Working spike script: `surf_spike_v6.py`
 5. Outputs a contact sheet JPEG to `spike_output/` for visual verification
 
 ### Key decisions already made
-- **Detection:** Claude vision, full-frame — no manual crop zones or tile splitting
+- **Detection:** Claude vision on zoomed tiles — the frame is cut into a grid (`tile_grid` in `config/settings.json`, default 3x2), each tile upscaled to `tile_width` and sent separately; no manual crop zones. Conditions come from one separate full-frame call
+- **Count = number of points located across tiles, never a number Claude states.** Whole-frame counting guessed: Haiku 4.5 snapped crowds to favourite values (731 rows of exactly 47; 12 and 28 overrepresented — treat pre-Oct-8-2026 counts as coarse), Haiku 5.5 rounded big crowds to multiples of 5, and whole-frame point lists put dots on empty water. Score any detection change with `scripts/eval_counts.py` against the hand counts in `eval/frames.json` (from the Lineup Answer Key artifact); it runs in CI as "Count Eval"
 - **Count method:** Max across 3-frame burst (not average)
 - **Quality scoring:** Laplacian variance + patch noise (glare-aware); frames below threshold excluded from API calls
 - **Model:** `claude-haiku-5-5` at effort `medium` (Oct 2026 A/B vs 4.5 on hand-counted frames: ~2x smaller count error, ~5x cheaper; `scripts/compare_models.py`)
