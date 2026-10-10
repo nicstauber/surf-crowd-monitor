@@ -35,6 +35,12 @@ Working spike script: `surf_spike_v6.py`
 | `newport_56th` | Newport 56th | `wc-fiftysixnewport` |
 | `el_porto` | El Porto - 42nd Street | `wc-elporto42nd` |
 | `malibu` | Malibu - Surfrider Beach | `wc-malibusurfrider` |
+| `river_jetties_north` | River Jetties - North | `wc-riverjettiesnorth` |
+| `newport_point` | Newport Point | `wc-newportpierss` |
+| `corona_del_mar` | Corona del Mar | `wc-coronadelmar` |
+| `salt_creek` | Salt Creek | `wc-saltcreek` |
+| `hb_pier_south_tower1` | HB Pier South - Tower 1-3 | `wc-hbpierss` |
+| `newport_54th` | Newport 54th | `wc-fiftyfournewport` |
 
 All HLS streams follow: `https://hls.cdn-surfline.com/oregon/[slug]/playlist.m3u8`
 
