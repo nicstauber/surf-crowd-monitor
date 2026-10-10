@@ -1,7 +1,7 @@
 name: Count Eval
 
 # Re-checks count stability whenever the vision prompt or the eval itself
-# changes: ~100 Haiku calls per run, a few cents. See scripts/eval_counts.py.
+# changes: ~900 Haiku calls per run, well under a dollar. See scripts/eval_counts.py.
 on:
   pull_request:
     paths:
@@ -13,7 +13,7 @@ on:
 jobs:
   eval:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,7 +27,7 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: Compare counts (main vs this branch)
-        run: python scripts/eval_counts.py --runs 3 --overlay-dir eval_overlays
+        run: python scripts/eval_counts.py --runs 2 --grids 3x2,4x2 --overlay-dir eval_overlays
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 

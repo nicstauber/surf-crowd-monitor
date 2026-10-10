@@ -12,5 +12,7 @@
   "claude_effort": "medium",
   "claude_max_tokens": 4000,
   "image_width": 1280,
+  "tile_grid": [3, 2],
+  "tile_width": 1024,
   "output_dir": "./spike_output"
 }
