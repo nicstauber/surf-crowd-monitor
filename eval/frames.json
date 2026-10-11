@@ -5,7 +5,7 @@
       "id": "f01",
       "spot": "doheny_second_spot",
       "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/doheny_second_spot/2026-08-09T22-52-44.jpg",
-      "truth": null
+      "truth": 47
     },
     {
       "id": "f02",
@@ -59,7 +59,7 @@
       "id": "f10",
       "spot": "upper_trestles",
       "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/upper_trestles/2026-10-09T14-15-59.jpg",
-      "truth": null
+      "truth": 33
     },
     {
       "id": "f11",
@@ -77,7 +77,7 @@
       "id": "f13",
       "spot": "el_porto",
       "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/el_porto/2026-10-09T15-03-16.jpg",
-      "truth": null
+      "truth": 19
     },
     {
       "id": "f14",
@@ -113,7 +113,7 @@
       "id": "f19",
       "spot": "newport_56th",
       "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/newport_56th/2026-10-02T16-27-26.jpg",
-      "truth": null
+      "truth": 8
     },
     {
       "id": "f20",
@@ -125,61 +125,61 @@
       "id": "f21",
       "spot": "upper_trestles",
       "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/upper_trestles/2026-08-05T23-10-34.jpg",
-      "truth": null
+      "truth": 0
     },
     {
       "id": "f22",
       "spot": "north_hb_20th",
       "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/north_hb_20th/2026-09-12T21-10-26.jpg",
-      "truth": null
+      "truth": 0
     },
     {
       "id": "f23",
       "spot": "newport_56th",
       "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/newport_56th/2026-08-04T20-46-42.jpg",
-      "truth": null
+      "truth": 8
     },
     {
       "id": "f24",
       "spot": "bolsa_chica_tower17",
       "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/bolsa_chica_tower17/2026-08-30T15-11-18.jpg",
-      "truth": null
+      "truth": 32
     },
     {
       "id": "f25",
       "spot": "hb_cliffs",
       "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/hb_cliffs/2026-08-07T21-02-13.jpg",
-      "truth": null
+      "truth": 0
     },
     {
       "id": "f26",
       "spot": "lower_trestles",
       "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/lower_trestles/2026-10-09T22-00-38.jpg",
-      "truth": null
+      "truth": 4
     },
     {
       "id": "f27",
       "spot": "malibu",
       "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/malibu/2026-09-13T17-46-35.jpg",
-      "truth": null
+      "truth": 6
     },
     {
       "id": "f28",
       "spot": "el_porto",
       "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/el_porto/2026-09-14T16-46-43.jpg",
-      "truth": null
+      "truth": 9
     },
     {
       "id": "f29",
       "spot": "lower_trestles",
       "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/lower_trestles/2026-10-09T17-00-30.jpg",
-      "truth": null
+      "truth": 8
     },
     {
       "id": "f30",
       "spot": "el_porto",
       "url": "https://htqizzhtueybtqbwcmiq.supabase.co/storage/v1/object/public/frames/el_porto/2026-09-13T22-02-01.jpg",
-      "truth": null
+      "truth": 6
     }
   ]
 }

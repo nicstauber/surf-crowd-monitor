@@ -2,21 +2,17 @@
 How close and how steady are the surfer counts? Old detector vs the current one.
 
 Runs every frame in eval/frames.json through detect.py as it is at --base-ref
-(default origin/main) and as it is in the working tree — once per --grid for
-the current version — several times each. Reports, per version:
+(default origin/main) and as it is in the working tree, several times each.
+Reports, per version:
   - error against the hand count (`truth`, from the Lineup Answer Key page)
     for frames that have one,
   - how much the count moves between identical calls,
   - how often a count of 20+ lands on a multiple of 5.
 
 Usage:
-    python scripts/eval_counts.py                       # 3 runs, current grid
-    python scripts/eval_counts.py --grids 3x2,4x2 --runs 2
+    python scripts/eval_counts.py                 # 3 runs per frame per version
+    python scripts/eval_counts.py --runs 5 --full # include the conditions prompt
     python scripts/eval_counts.py --base-ref HEAD~1
-
-Each current-version run prints a POINTS line (frame, arm, run, points on a
-0-1000 scale) so located surfers can be drawn back onto the frame; with
---overlay-dir the script draws the first run itself.
 
 Needs ANTHROPIC_API_KEY. Nothing is written to Supabase.
 """
@@ -37,7 +33,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "src"))
 
 import anthropic
-from PIL import Image, ImageDraw
+from PIL import Image
 
 import detect as current_detect
 
@@ -59,35 +55,19 @@ def fetch(url: str) -> Image.Image:
         return Image.open(BytesIO(r.read())).convert("RGB")
 
 
-def draw_points(img: Image.Image, points: list, out: Path) -> None:
-    img = img.copy()
-    d   = ImageDraw.Draw(img)
-    r   = max(2, img.width // 200)
-    for x, y in points:
-        px, py = x * img.width / 1000, y * img.height / 1000
-        d.ellipse([px - r, py - r, px + r, py + r], outline=(255, 0, 80), width=2)
-    d.text((6, 6), f"{len(points)} located", fill=(255, 0, 80))
-    img.save(out, quality=90)
-
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--base-ref", default="origin/main")
-    ap.add_argument("--grids", help="comma-separated tile grids for the current version, e.g. 3x2,4x2")
-    ap.add_argument("--full", action="store_true", help="also run the conditions call")
-    ap.add_argument("--overlay-dir", type=Path)
+    ap.add_argument("--full", action="store_true", help="use the full conditions prompt")
     args = ap.parse_args()
 
     settings = json.loads((_ROOT / "config" / "settings.json").read_text())
     frames   = json.loads((_ROOT / "eval" / "frames.json").read_text())["frames"]
-    grids    = args.grids.split(",") if args.grids else ["x".join(map(str, settings["tile_grid"]))]
 
     # arm label -> (module, settings)
-    arms = {"base": (load_base_detect(args.base_ref), settings)}
-    for g in grids:
-        c, r = (int(v) for v in g.split("x"))
-        arms[f"tiles {g}"] = (current_detect, {**settings, "tile_grid": [c, r]})
+    arms = {"base": (load_base_detect(args.base_ref), settings),
+            "current": (current_detect, settings)}
 
     client = anthropic.Anthropic()
     try:
@@ -113,13 +93,6 @@ def main():
     for (i, a, r), res in results:
         counts[(i, a)].append(res["count"])
         tokens[a].append(res.get("input_tokens", 0) + res.get("output_tokens", 0))
-        if a != "base" and res["count"] >= 0:
-            print(f"POINTS {frames[i]['id']} {a.replace(' ', '_')} r{r} "
-                  f"{json.dumps(res.get('points', []), separators=(',', ':'))}")
-            if args.overlay_dir and r == 0:
-                args.overlay_dir.mkdir(parents=True, exist_ok=True)
-                draw_points(images[i], res["points"],
-                            args.overlay_dir / f"{frames[i]['id']}_{a.replace(' ', '_')}.jpg")
 
     names = list(arms)
     print(f"\n{'Frame':<6} {'Spot':<20} {'Truth':>5}  " + "  ".join(f"{a:<14}" for a in names))
