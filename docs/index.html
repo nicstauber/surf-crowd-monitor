@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -239,6 +240,71 @@
       font-size: 12px;
       letter-spacing: 0.03em;
     }
+
+    /* ── Live cam (tap a card to play) ────────────────────────────────────── */
+    .frame-play {
+      position: absolute;
+      left: 10px;
+      bottom: 10px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #fff;
+      background: rgba(0,0,0,0.55);
+      padding: 4px 8px;
+      border-radius: 20px;
+      pointer-events: none;
+      opacity: 0.85;
+      transition: opacity 0.2s;
+    }
+    .spot-card:hover .frame-play { opacity: 1; }
+    .frame-wrap { position: relative; }
+    .live-wrap {
+      position: relative;
+      aspect-ratio: 16/9;
+      background: #000;
+    }
+    .live-wrap video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .live-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #fff;
+      background: #dc2626;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+    .live-close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #fff;
+      background: rgba(0,0,0,0.55);
+      padding: 4px 8px;
+      border-radius: 20px;
+    }
+    .live-status {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: rgba(255,255,255,0.8);
+      pointer-events: none;
+    }
+    .live-status:empty { display: none; }
 
     .card-body { padding: 18px 20px 20px; }
 
@@ -642,7 +708,7 @@ async function loadSpots() {
   const json = await res.json();
   SPOTS  = json.spots
     .filter(s => s.enabled)
-    .map(s => ({ id: s.id, name: s.name, surflineId: s.surfline_spot_id }));
+    .map(s => ({ id: s.id, name: s.name, surflineId: s.surfline_spot_id, slug: s.hls_slug }));
   COLORS = Object.fromEntries(
     SPOTS.map((s, i) => [s.id, PALETTE[i % PALETTE.length]])
   );
@@ -737,9 +803,10 @@ function cardHTML(spot, obs, cond = {}) {
   // Prefer live conditions (cond), fall back to stored DB values (obs)
   const rk       = ratingKey(cond?.spot_rating ?? obs?.spot_rating);
 
-  const frameHTML = obs?.frame_url
+  const frameHTML = `<div class="frame-wrap">${obs?.frame_url
     ? `<img class="frame-thumb" src="${obs.frame_url}" alt="${spot.name}" loading="lazy">`
-    : `<div class="frame-placeholder">No frame yet</div>`;
+    : `<div class="frame-placeholder">No frame yet</div>`}${
+    spot.slug ? `<span class="frame-play">▶ Live cam</span>` : ''}</div>`;
 
   let countHTML, unitHTML, metaHTML;
   if (!obs) {
@@ -1265,6 +1332,7 @@ async function fetchLatest() {
 
   document.getElementById('spotsGrid').innerHTML =
     results.map(({ spot, obs, cond }) => cardHTML(spot, obs, cond)).join('');
+  remountLiveCam();
 
   // Stash obs on each card element so the back-card loader can read it
   results.forEach(({ spot, obs }) => {
@@ -1340,6 +1408,80 @@ function _updatePTLabel(section, barCol) {
   if (headerEl) headerEl.textContent = label ? `${formatHour12(hour)}: ${label}` : '';
 }
 
+// ── Live cam player ────────────────────────────────────────────────────────
+// Surfline only serves the HLS playlist to surfline.com, so it comes through
+// the cam-playlist Edge Function; the video segments load straight from
+// Surfline's CDN. One cam plays at a time.
+const _CAM_FN = `${SUPABASE_URL}/functions/v1/cam-playlist`;
+let liveCam = null;  // { spotId, wrap, hls }
+// Surfline's CDN 403s video segments for *.vercel.app and *.netlify.app
+// origins (Oct 2026), so cams only play on the custom domain, not previews.
+const _CAM_BLOCKED_HOST = /\.(vercel|netlify)\.app$/.test(location.hostname);
+const _CAM_ERROR = _CAM_BLOCKED_HOST
+  ? 'Live cams only play on surf.nico.studio, not preview links'
+  : 'Cam unavailable right now';
+
+function startLiveCam(card) {
+  const spot = SPOTS.find(s => s.id === card.dataset.spotId);
+  const frameWrap = card.querySelector('.frame-wrap');
+  if (!spot?.slug || !frameWrap) return;
+  stopLiveCam();
+
+  const wrap = document.createElement('div');
+  wrap.className = 'live-wrap';
+  wrap.innerHTML = `
+    <video muted autoplay playsinline></video>
+    <span class="live-badge">● LIVE</span>
+    <span class="live-close">✕ Close</span>
+    <span class="live-status">Loading cam…</span>`;
+  const video  = wrap.querySelector('video');
+  const status = wrap.querySelector('.live-status');
+  const src    = `${_CAM_FN}?slug=${encodeURIComponent(spot.slug)}`;
+  video.addEventListener('playing', () => { status.textContent = ''; });
+
+  let hls = null;
+  if (window.Hls?.isSupported()) {
+    hls = new Hls({ liveSyncDurationCount: 2 });
+    hls.on(Hls.Events.ERROR, (_, data) => {
+      if (!data.fatal) return;
+      status.textContent = _CAM_ERROR;
+      // hls.js is still mid-callback; destroying it synchronously throws
+      setTimeout(() => hls.destroy());
+    });
+    hls.loadSource(src);
+    hls.attachMedia(video);
+  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    video.src = src;  // Safari plays HLS natively
+    video.addEventListener('error', () => { status.textContent = _CAM_ERROR; });
+  } else {
+    status.textContent = 'Live video not supported in this browser';
+  }
+
+  frameWrap.replaceWith(wrap);
+  liveCam = { spotId: spot.id, wrap, hls, frameWrap };
+}
+
+function stopLiveCam() {
+  if (!liveCam) return;
+  liveCam.hls?.destroy();
+  const video = liveCam.wrap.querySelector('video');
+  video.removeAttribute('src');
+  video.load();
+  liveCam.wrap.replaceWith(liveCam.frameWrap);
+  liveCam = null;
+}
+
+// The 5-min refresh rebuilds every card. Move the playing player into the
+// fresh card in the same task so the video keeps going without a reload.
+function remountLiveCam() {
+  if (!liveCam) return;
+  const frameWrap = document.querySelector(
+    `.spot-card[data-spot-id="${liveCam.spotId}"] .frame-wrap`);
+  if (!frameWrap) { liveCam.hls?.destroy(); liveCam = null; return; }
+  frameWrap.replaceWith(liveCam.wrap);
+  liveCam.frameWrap = frameWrap;
+}
+
 // ── Flip card + Popular Times event delegation ─────────────────────────────
 function setupFlipHandler() {
   const grid = document.getElementById('spotsGrid');
@@ -1368,11 +1510,14 @@ function setupFlipHandler() {
       return;
     }
 
-    // Default: flip card
+    // Default: toggle the live cam. Card flipping (Popular Times on the
+    // back) is switched off for now; restore with:
+    //   card.classList.toggle('flipped');
+    //   if (card.classList.contains('flipped')) await ensureBackLoaded(card);
     const card = e.target.closest('.spot-card[data-spot-id]');
     if (!card) return;
-    card.classList.toggle('flipped');
-    if (card.classList.contains('flipped')) await ensureBackLoaded(card);
+    if (liveCam?.spotId === card.dataset.spotId) stopLiveCam();
+    else startLiveCam(card);
   });
 
   // Bar hover → update crowd label (desktop)
