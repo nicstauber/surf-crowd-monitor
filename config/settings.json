@@ -11,6 +11,6 @@
   "claude_model": "claude-haiku-5-5",
   "claude_effort": "medium",
   "claude_max_tokens": 2000,
-  "image_width": 1280,
+  "image_width": 1920,
   "output_dir": "./spike_output"
 }

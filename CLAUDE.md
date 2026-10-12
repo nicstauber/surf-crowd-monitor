@@ -15,6 +15,7 @@ Working spike script: `surf_spike_v6.py`
 
 ### Key decisions already made
 - **Detection:** Claude vision, full-frame — no manual crop zones or tile splitting
+- **Full camera resolution:** frames go to Claude at up to 1920px wide (`image_width`). Probed Oct 2026: Seal Beach, Goldenwest, HB Pier Tower 1-3, Newport 36th, Corona del Mar, Salt Creek, Upper and Lower Trestles stream 1080p; the other cams stream 720p. Each stream has a single variant, so there is no higher resolution to request
 - **Count method:** Max across 3-frame burst (not average)
 - **Quality scoring:** Laplacian variance + patch noise (glare-aware); frames below threshold excluded from API calls
 - **Model:** `claude-haiku-5-5` at effort `medium` (Oct 2026 A/B vs 4.5 on hand-counted frames: ~2x smaller count error, ~5x cheaper; `scripts/compare_models.py`)
