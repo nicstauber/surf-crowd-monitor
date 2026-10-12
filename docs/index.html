@@ -1237,22 +1237,22 @@ async function fetchAndRenderHeatmap(days) {
 }
 
 // ── Fetch latest observation per spot ─────────────────────────────────────
+// Only the columns the front and back of a card read.
+const LATEST_COLUMNS = [
+  'spot_id', 'captured_at', 'surfer_count', 'count_reliable', 'frame_url', 'spot_rating',
+  'wave_height_min', 'wave_height_max', 'swell_height', 'swell_period', 'swell_direction',
+  'wind_speed', 'tide_height', 'vision_surface', 'vision_wave_quality',
+  'vision_water_clarity', 'vision_visibility', 'vision_conditions_notes',
+].join(',');
+
 async function fetchLatest() {
-  const results = await Promise.all(
-    SPOTS.map(async spot => {
-      const [{ data }, cond] = await Promise.all([
-        db
-          .from('observations')
-          .select('*')
-          .eq('spot_id', spot.id)
-          .order('captured_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        fetchSpotConditions(spot.surflineId),
-      ]);
-      return { spot, obs: data, cond };
-    })
-  );
+  // One request for every spot's newest row (migration 006), not one per spot.
+  const [{ data: latest }, conds] = await Promise.all([
+    db.rpc('latest_per_spot', { p_spot_ids: SPOTS.map(s => s.id) }).select(LATEST_COLUMNS),
+    Promise.all(SPOTS.map(spot => fetchSpotConditions(spot.surflineId))),
+  ]);
+  const obsBySpot = new Map((latest || []).map(o => [o.spot_id, o]));
+  const results = SPOTS.map((spot, i) => ({ spot, obs: obsBySpot.get(spot.id) ?? null, cond: conds[i] }));
 
   document.getElementById('spotsGrid').innerHTML =
     results.map(({ spot, obs, cond }) => cardHTML(spot, obs, cond)).join('');
