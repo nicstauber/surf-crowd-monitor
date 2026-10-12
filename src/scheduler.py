@@ -215,16 +215,19 @@ def run_spot_sample(
     if contributing:
         best             = contributing[0]  # only one frame was sent to Claude
         surfer_count     = best["count"]
+        count_min        = best.get("count_min", surfer_count)
+        count_max        = best.get("count_max", surfer_count)
         count_reliable   = True
         claude_notes     = best["notes"]
         vision_conditions      = best.get("conditions", {})
         vision_conditions_notes = best.get("conditions_notes", "")
         log.info(
-            f"[{spot_id}] Final count: {surfer_count}  "
+            f"[{spot_id}] Final count: {count_min}-{count_max} (mid {surfer_count})  "
             f"(best-frame, 1 API call)"
         )
     else:
         surfer_count     = None   # null = unknown; 0 would mean "counted zero"
+        count_min = count_max = None
         count_reliable   = False
         claude_notes     = "No qualifying frames"
         vision_conditions      = {}
@@ -248,6 +251,8 @@ def run_spot_sample(
         "spot_id":          spot_id,
         "spot_name":        spot["name"],
         "surfer_count":     surfer_count,
+        "surfer_count_min": count_min,
+        "surfer_count_max": count_max,
         "count_reliable":   count_reliable,
         "count_method":     _COUNT_METHOD + ("" if last_assessment is None else _COUNT_ONLY),
         "session_quality":  round(mean(all_scores), 3),

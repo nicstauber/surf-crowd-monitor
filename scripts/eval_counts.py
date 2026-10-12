@@ -89,22 +89,29 @@ def main():
         results = list(pool.map(run, jobs))
 
     counts = {(i, a): [] for i in range(len(frames)) for a in arms}
+    ranges = {(i, a): [] for i in range(len(frames)) for a in arms}  # (sure, sure+maybe)
     tokens = {a: [] for a in arms}
     for (i, a, r), res in results:
         counts[(i, a)].append(res["count"])
+        # A version without a range reports one number: a zero-width range.
+        ranges[(i, a)].append((res.get("count_min", res["count"]), res.get("count_max", res["count"])))
         tokens[a].append(res.get("input_tokens", 0) + res.get("output_tokens", 0))
 
+    def cell(i, a):
+        return ",".join(str(c) if lo == hi else f"{lo}-{hi}"
+                        for c, (lo, hi) in zip(counts[(i, a)], ranges[(i, a)]))
+
     names = list(arms)
-    print(f"\n{'Frame':<6} {'Spot':<20} {'Truth':>5}  " + "  ".join(f"{a:<14}" for a in names))
-    print("─" * (34 + 16 * len(names)))
+    print(f"\n{'Frame':<6} {'Spot':<20} {'Truth':>5}  " + "  ".join(f"{a:<22}" for a in names))
+    print("─" * (34 + 24 * len(names)))
     for i, f in enumerate(frames):
         truth = "—" if f.get("truth") is None else str(f["truth"])
-        cells = "  ".join(f"{','.join(map(str, counts[(i, a)])):<14}" for a in names)
+        cells = "  ".join(f"{cell(i, a):<22}" for a in names)
         print(f"{f['id']:<6} {f['spot']:<20} {truth:>5}  {cells}")
 
-    print("\n" + "═" * 86)
-    print(f"{'Version':<12} {'Avg error':>10} {'Bias':>6} {'Within ±2':>10} "
-          f"{'Avg spread':>11} {'Round (≥20)':>12} {'Failed':>7} {'Tokens/frame':>12}")
+    print("\n" + "═" * 108)
+    print(f"{'Version':<12} {'Avg error':>10} {'Bias':>6} {'Within ±2':>10} {'In range':>9} "
+          f"{'Width':>6} {'Avg spread':>11} {'Round (≥20)':>12} {'Failed':>7} {'Tokens/frame':>12}")
     for a in names:
         errs = [c - f["truth"] for i, f in enumerate(frames)
                 if f.get("truth") is not None and f["truth"] >= 0
@@ -117,13 +124,19 @@ def main():
         err_s   = f"{mean(abs(e) for e in errs):.1f}" if errs else "—"
         bias_s  = f"{mean(errs):+.1f}" if errs else "—"
         close_s = f"{100 * sum(abs(e) <= 2 for e in errs) / len(errs):.0f}%" if errs else "—"
-        print(f"{a:<12} {err_s:>10} {bias_s:>6} {close_s:>10} "
+        spans   = [(lo, hi, f["truth"]) for i, f in enumerate(frames)
+                   if f.get("truth") is not None and f["truth"] >= 0
+                   for lo, hi in ranges[(i, a)] if lo >= 0]
+        inr_s   = f"{100 * sum(lo <= t <= hi for lo, hi, t in spans) / len(spans):.0f}%" if spans else "—"
+        width_s = f"{mean(hi - lo for lo, hi, _ in spans):.1f}" if spans else "—"
+        print(f"{a:<12} {err_s:>10} {bias_s:>6} {close_s:>10} {inr_s:>9} {width_s:>6} "
               f"{mean(spreads) if spreads else 0:>11.1f} {round_:>12} {failed:>7} "
               f"{mean(tokens[a]):>12.0f}")
-    print("═" * 86)
-    print("Error and bias = count − hand count (bias < 0 means undercounting). Spread = max − min")
-    print("across identical calls on one frame. Round = share of counts ≥20 that are multiples")
-    print("of 5 (≈20% if nothing is rounded). Failed = calls that returned no usable count.")
+    print("═" * 108)
+    print("Error and bias = midpoint count − hand count (bias < 0 means undercounting). In range =")
+    print("share of calls whose sure..sure+maybe range holds the hand count; Width = average range")
+    print("width. Spread = max − min across identical calls on one frame. Round = share of counts")
+    print("≥20 that are multiples of 5 (≈20% if nothing is rounded). Failed = no usable count.")
 
 
 if __name__ == "__main__":

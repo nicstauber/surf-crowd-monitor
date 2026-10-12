@@ -39,6 +39,12 @@ DO NOT COUNT:
 - Birds, animals, or buoys
 - Whitewash or foam that resembles a person
 
+SURE vs MAYBE
+Far-off surfers can be just a few dark pixels, the same as a bird, buoy, kelp or wave shadow. Split your count:
+- surfers_sure: clearly a surfer: a board is visible, they are riding or paddling, or the body shape is readable
+- surfers_maybe: a dark dot in the lineup or surf zone that could be a surfer but could also be something else
+Every dot you think might be a surfer goes in exactly one of the two. Do not leave plausible surfers out of both.
+
 PART 2 — CONDITIONS ASSESSMENT
 Assess the following fields using only the allowed values listed.
 
@@ -70,7 +76,8 @@ IMPORTANT: Use only the exact values listed for each field. Do not invent new va
 
 Respond ONLY with JSON, no other text:
 {
-  "surfer_count": <exact integer>,
+  "surfers_sure": <exact integer>,
+  "surfers_maybe": <exact integer>,
   "confidence": "<low|medium|high>",
   "count_notes": "<where surfers are located, e.g. 'cluster of 6 in left lineup, 3 scattered middle'>",
   "conditions": {
@@ -86,7 +93,7 @@ Respond ONLY with JSON, no other text:
   "conditions_notes": "<one sentence describing the overall session — e.g. 'Small clean chest-high sets with offshore grooming, glassy surface, light crowd spread across the peak'>"
 }
 
-If darkness, fog, haze, or glare hides the water so you cannot see whether anyone is out, set surfer_count to -1. Use 0 only when the water is clearly visible and empty."""
+If darkness, fog, haze, or glare hides the water so you cannot see whether anyone is out, set surfers_sure to -1. Use 0 for both only when the water is clearly visible and empty."""
 
 
 # Count-only variant for the ticks between hourly conditions assessments. It
@@ -97,12 +104,13 @@ _COUNT_PROMPT = (
     + _PROMPT[_PROMPT.index("PART 1"):_PROMPT.index("PART 2")].replace("PART 1 — SURFER COUNT\n", "")
     + """Respond ONLY with JSON, no other text:
 {
-  "surfer_count": <exact integer>,
+  "surfers_sure": <exact integer>,
+  "surfers_maybe": <exact integer>,
   "confidence": "<low|medium|high>",
   "count_notes": "<under 15 words on where surfers are, e.g. '6 in left lineup, 3 middle'>"
 }
 
-If darkness, fog, haze, or glare hides the water so you cannot see whether anyone is out, set surfer_count to -1. Use 0 only when the water is clearly visible and empty."""
+If darkness, fog, haze, or glare hides the water so you cannot see whether anyone is out, set surfers_sure to -1. Use 0 for both only when the water is clearly visible and empty."""
 )
 
 
@@ -127,7 +135,8 @@ def analyze_frame(
     """
     Send full frame to Claude for surfer count + conditions assessment
     (or a cheaper count-only call when include_conditions is False).
-    Returns a dict with keys: count, confidence, notes, conditions, conditions_notes,
+    Returns a dict with keys: count (midpoint of count_min..count_max), count_min
+    (sure surfers), count_max (sure + maybe), confidence, notes, conditions, conditions_notes,
     plus model / input_tokens / output_tokens when the API call succeeded.
     count is -1 if Claude cannot determine a reliable count.
     """
@@ -178,18 +187,28 @@ def analyze_frame(
         clean  = raw.replace("```json", "").replace("```", "").strip()
         parsed = json.loads(clean)
 
-        count      = int(parsed.get("surfer_count", -1))
+        # A range, not a fake-exact number: far-off surfers are a few pixels
+        # that could also be birds or buoys. count (the midpoint) feeds stats.
+        sure       = int(parsed.get("surfers_sure", -1))
+        maybe      = max(0, int(parsed.get("surfers_maybe") or 0))
+        if sure < 0:
+            count = count_min = count_max = -1
+        else:
+            count_min, count_max = sure, sure + maybe
+            count = round((count_min + count_max) / 2)
         conf       = parsed.get("confidence", "unknown")
         notes      = parsed.get("count_notes", "")
         conditions = parsed.get("conditions", {})
         cond_notes = parsed.get("conditions_notes", "")
 
-        log.info(f"[{frame_label}] Claude → count={count}  conf={conf}")
+        log.info(f"[{frame_label}] Claude → {count_min}-{count_max} surfers  conf={conf}")
         log.info(f"[{frame_label}] {notes}")
         log.info(f"[{frame_label}] {cond_notes}")
 
         return {
             "count":            count,
+            "count_min":        count_min,
+            "count_max":        count_max,
             "confidence":       conf,
             "notes":            notes,
             "conditions":       conditions,
