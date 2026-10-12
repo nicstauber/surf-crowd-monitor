@@ -14,8 +14,11 @@ Working spike script: `surf_spike_v6.py`
 5. Outputs a contact sheet JPEG to `spike_output/` for visual verification
 
 ### Key decisions already made
-- **Detection:** Claude vision, full-frame — no manual crop zones or tile splitting
+- **Detection:** Claude vision, full-frame — no manual crop zones or tile splitting. Zoomed 3x2 tiles were tried (Oct 2026): ~11x the tokens, steadier but no more accurate against hand counts (tiles lose sight of what is water vs beach and miss tight far-off lineups)
+- **Surfers only:** count people on or beside a board in the surf zone; waders and swimmers in the shore break are not counted (`count_method` `..._v8_surfers_only` from Oct 2026). Earlier rows also counted waders
+- **Count is a range:** far-off surfers are a few pixels that could be birds or buoys, so Claude returns `surfers_sure` and `surfers_maybe`. Stored as `surfer_count_min` (sure) and `surfer_count_max` (sure + maybe); `surfer_count` is the midpoint and feeds stats, heatmaps and thresholds. The dashboard shows the range (migration 006, Oct 2026)
 - **Full camera resolution:** frames go to Claude at up to 1920px wide (`image_width`). Probed Oct 2026: Seal Beach, Goldenwest, HB Pier Tower 1-3, Newport 36th, Corona del Mar, Salt Creek, Upper and Lower Trestles stream 1080p; the other cams stream 720p. Each stream has a single variant, so there is no higher resolution to request
+- **Count accuracy:** score any detection change with `scripts/eval_counts.py` against the hand counts (`truth`) in `eval/frames.json`, taken from the Lineup Answer Key artifact; it runs in CI as "Count Eval". Haiku 4.5 (before Oct 8 2026) snapped crowd counts to favourite values (731 rows of exactly 47; 12 and 28 overrepresented): treat those rows as coarse
 - **Count method:** Max across 3-frame burst (not average)
 - **Quality scoring:** Laplacian variance + patch noise (glare-aware); frames below threshold excluded from API calls
 - **Model:** `claude-haiku-5-5` at effort `medium` (Oct 2026 A/B vs 4.5 on hand-counted frames: ~2x smaller count error, ~5x cheaper; `scripts/compare_models.py`)

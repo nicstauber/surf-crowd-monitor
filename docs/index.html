@@ -787,6 +787,15 @@ function fmtVision(val) {
   return val.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+// ── Count as shown: a range when the counter was unsure about far-off dots ──
+// surfer_count_min = sure surfers, surfer_count_max = sure + possible. Older
+// rows have no range and show their single count. Stats use surfer_count.
+function countText(obs) {
+  const lo = obs?.surfer_count_min, hi = obs?.surfer_count_max;
+  if (lo != null && hi != null && hi > lo) return `${lo}–${hi}`;
+  return `${obs?.surfer_count}`;
+}
+
 // ── Render a single card ───────────────────────────────────────────────────
 function cardHTML(spot, obs, cond = {}) {
   const count    = obs?.surfer_count;
@@ -809,8 +818,8 @@ function cardHTML(spot, obs, cond = {}) {
     unitHTML  = '';
     metaHTML  = `Unreliable · ${timeAgo(obs.captured_at)}`;
   } else {
-    countHTML = `<div class="count-num known">${count}</div>`;
-    unitHTML  = `<div class="count-unit">surfers</div>`;
+    countHTML = `<div class="count-num known">${countText(obs)}</div>`;
+    unitHTML  = `<div class="count-unit">${countText(obs) === '1' ? 'surfer' : 'surfers'}</div>`;
     metaHTML  = `Counted ${timeAgo(obs.captured_at)}`;
   }
 
@@ -1127,7 +1136,7 @@ function renderBackHTML(spot, obs, hourlyByDay, hourStats, condStats) {
   const badgeHTML = (level && count != null)
     ? `<div class="crowd-level-wrap">
         <div class="crowd-level-badge crowd-level-${level}">${level}</div>
-        <div class="crowd-current">Currently ${count} surfer${count !== 1 ? 's' : ''}</div>
+        <div class="crowd-current">Currently ${countText(obs)} surfer${countText(obs) !== '1' ? 's' : ''}</div>
        </div>`
     : `<div class="back-no-data">No recent count to compare</div>`;
 

@@ -1,0 +1,34 @@
+name: Count Eval
+
+# Scores the counter against the hand counts in eval/frames.json whenever the
+# vision prompt or the eval changes: ~180 Haiku calls per run, a few cents.
+# See scripts/eval_counts.py.
+on:
+  pull_request:
+    paths:
+      - src/detect.py
+      - scripts/eval_counts.py
+      - eval/**
+  workflow_dispatch:
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the eval imports detect.py from origin/main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Compare counts (main vs this branch)
+        run: python scripts/eval_counts.py --runs 3
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
