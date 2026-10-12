@@ -1405,6 +1405,12 @@ function _updatePTLabel(section, barCol) {
 // Surfline's CDN. One cam plays at a time.
 const _CAM_FN = `${SUPABASE_URL}/functions/v1/cam-playlist`;
 let liveCam = null;  // { spotId, wrap, hls }
+// Surfline's CDN 403s video segments for *.vercel.app and *.netlify.app
+// origins (Oct 2026), so cams only play on the custom domain, not previews.
+const _CAM_BLOCKED_HOST = /\.(vercel|netlify)\.app$/.test(location.hostname);
+const _CAM_ERROR = _CAM_BLOCKED_HOST
+  ? 'Live cams only play on surf.nico.studio, not preview links'
+  : 'Cam unavailable right now';
 
 function startLiveCam(card) {
   const spot = SPOTS.find(s => s.id === card.dataset.spotId);
@@ -1429,14 +1435,14 @@ function startLiveCam(card) {
     hls = new Hls({ liveSyncDurationCount: 2 });
     hls.on(Hls.Events.ERROR, (_, data) => {
       if (!data.fatal) return;
-      status.textContent = 'Cam unavailable right now';
+      status.textContent = _CAM_ERROR;
       hls.destroy();
     });
     hls.loadSource(src);
     hls.attachMedia(video);
   } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
     video.src = src;  // Safari plays HLS natively
-    video.addEventListener('error', () => { status.textContent = 'Cam unavailable right now'; });
+    video.addEventListener('error', () => { status.textContent = _CAM_ERROR; });
   } else {
     status.textContent = 'Live video not supported in this browser';
   }
