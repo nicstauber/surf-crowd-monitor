@@ -1436,7 +1436,8 @@ function startLiveCam(card) {
     hls.on(Hls.Events.ERROR, (_, data) => {
       if (!data.fatal) return;
       status.textContent = _CAM_ERROR;
-      hls.destroy();
+      // hls.js is still mid-callback; destroying it synchronously throws
+      setTimeout(() => hls.destroy());
     });
     hls.loadSource(src);
     hls.attachMedia(video);
