@@ -121,6 +121,10 @@ _VISION_FIELDS = [
     "vision_crowd_distribution", "vision_water_clarity", "vision_lighting",
     "vision_visibility", "vision_conditions_notes",
 ]
+# What plan_spot() and the carried-forward assessment read from recent rows.
+_PLAN_COLUMNS = ",".join(
+    ["spot_id", "captured_at", "count_reliable", "surfer_count", "count_method", *_VISION_FIELDS]
+)
 
 
 def plan_spot(rows: list[dict], now: datetime, settings: dict) -> tuple[str, dict | None]:
@@ -339,7 +343,7 @@ def run_sample_cycle(
     # full sample, which costs more but never loses data.
     now    = datetime.now(timezone.utc)
     window = max(settings["conditions_interval_minutes"], settings["quiet_interval_minutes"])
-    recent = None if skip_db else recent_observations(now - timedelta(minutes=window))
+    recent = None if skip_db else recent_observations(now - timedelta(minutes=window), _PLAN_COLUMNS)
     if recent is None:
         log.warning("No recent observations available — full sample for every spot")
 

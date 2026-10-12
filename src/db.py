@@ -119,16 +119,17 @@ def latest_observations(spot_id: str, limit: int = 10):
         return []
 
 
-def recent_observations(since: datetime) -> list[dict] | None:
+def recent_observations(since: datetime, columns: str = "*") -> list[dict] | None:
     """
     Fetch every spot's observations captured at or after `since`, newest first.
+    `columns` is a PostgREST select list; pass only what the caller reads.
     Returns None (not []) on failure so callers can tell "no rows" from "unknown".
     """
     client = get_client()
     try:
         response = (
             client.table(_TABLE)
-            .select("*")
+            .select(columns)
             .gte("captured_at", since.isoformat())
             .order("captured_at", desc=True)
             .execute()
