@@ -8,6 +8,8 @@ Requires environment variables:
 
 import logging
 import os
+import time
+import uuid
 from io import BytesIO
 from datetime import datetime
 
@@ -35,20 +37,30 @@ def get_client() -> Client:
     return _client
 
 
-def write_observation(record: dict):
+def write_observation(record: dict, attempts: int = 3):
     """
     Insert one observation record into the observations table.
     Returns the new row's UUID on success, None on failure.
+
+    Retries transient failures (e.g. a Cloudflare 502 in front of Supabase).
+    The id is set client-side and the write is an upsert that ignores an
+    existing row, so a retry after a write that landed can't duplicate it.
     """
     client = get_client()
-    try:
-        response = client.table(_TABLE).insert(record).execute()
-        row_id   = response.data[0]["id"] if response.data else None
-        log.info(f"DB write OK → id={row_id}")
-        return row_id
-    except Exception as e:
-        log.error(f"DB write failed: {e}")
-        return None
+    record = {**record, "id": record.get("id") or str(uuid.uuid4())}
+    for attempt in range(1, attempts + 1):
+        try:
+            client.table(_TABLE).upsert(
+                record, on_conflict="id", ignore_duplicates=True
+            ).execute()
+            log.info(f"DB write OK → id={record['id']}")
+            return record["id"]
+        except Exception as e:
+            if attempt == attempts:
+                log.error(f"DB write failed after {attempts} attempts: {e}")
+                return None
+            log.warning(f"DB write attempt {attempt} failed, retrying: {str(e)[:200]}")
+            time.sleep(2 * attempt)
 
 
 def save_regional_report(report: dict) -> None:
